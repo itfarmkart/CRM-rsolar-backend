@@ -10,7 +10,9 @@ exports.getCustomers = async (req, res) => {
             limit = 10,
             offset = 0,
             sortBy,
-            order = 'desc' // Default to descending order
+            order = 'desc', // Default to descending order
+            startDate,
+            endDate
         } = req.query;
 
         let query = db('customerDetails as c')
@@ -20,6 +22,16 @@ exports.getCustomers = async (req, res) => {
                 'ca.agreementSignatureDate',
                 'ca.systemDeliveryDate'
             );
+
+        // Date Range Filter
+        if (startDate && endDate) {
+            console.log('both dates', startDate, endDate)
+            query = query.whereBetween('c.addedDate', [startDate, endDate]);
+        } else if (startDate) {
+            query = query.where('c.addedDate', '>=', startDate);
+        } else if (endDate) {
+            query = query.where('c.addedDate', '<=', endDate);
+        }
 
         // Search
         if (search) {

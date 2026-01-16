@@ -9,4 +9,7 @@ router.get('/health', healthController.getHealth);
 // Customers
 router.use('/customers', customerRoutes);
 
+// Allowed Emails
+router.use('/allowed-emails', require('./allowedEmailsRoutes'));
+
 module.exports = router;
