@@ -43,6 +43,22 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api/v1', v1Routes);
 
+// Temporary Debug Route to find Vercel Outgoing IP
+app.get('/api/v1/debug/my-ip', async (req, res) => {
+    try {
+        const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        res.json({
+            message: "This is the IP you need to whitelist (TEMPORARILY) on DigitalOcean",
+            vercel_outgoing_ip: data.ip,
+            note: "Warning: This IP will change on your next deployment or restart."
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
