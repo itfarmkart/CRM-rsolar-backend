@@ -166,7 +166,7 @@ exports.createComplaint = async (req, res) => {
             });
         }
 
-        const [newComplaintId] = await db('complaints').insert({
+        const insertData = {
             customerId,
             category,
             assignmentPerson,
@@ -174,7 +174,13 @@ exports.createComplaint = async (req, res) => {
             description,
             createdAt: db.fn.now(),
             updatedAt: db.fn.now()
-        });
+        }
+
+        if (status == 2) {
+            insertData.resolveDate = db.fn.now();
+        }
+
+        const [newComplaintId] = await db('complaints').insert(insertData);
 
         res.status(201).json({
             status: 'success',
