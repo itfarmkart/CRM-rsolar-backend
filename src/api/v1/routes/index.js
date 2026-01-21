@@ -9,6 +9,9 @@ router.get('/health', healthController.getHealth);
 // Customers
 router.use('/customers', customerRoutes);
 
+// Complaints
+router.use('/complaints', require('./complaintRoutes'));
+
 // Allowed Emails
 router.use('/allowed-emails', require('./allowedEmailsRoutes'));
 
