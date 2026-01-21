@@ -190,7 +190,7 @@ exports.createComplaint = async (req, res) => {
 
             if (recipient && recipient.leadEmail) {
                 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-                const customerLink = `${frontendUrl}/customers/${customerId}`;
+                const customerLink = `https://crm.myrsolar.com/customers/${customerId}`;
 
                 await sendEmail({
                     to: recipient.leadEmail,
