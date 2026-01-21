@@ -108,3 +108,84 @@ exports.getComplaints = async (req, res) => {
         });
     }
 };
+
+exports.getCategories = async (req, res) => {
+    try {
+        const categories = await db('complaintCategories')
+            .select('id', 'name')
+            .where('status', 1)
+            .orderBy('name', 'asc');
+
+        res.status(200).json({
+            status: 'success',
+            data: categories
+        });
+    } catch (error) {
+        console.error('Error fetching complaint categories:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch categories'
+        });
+    }
+};
+
+exports.getDepartments = async (req, res) => {
+    try {
+        const departments = await db('departments')
+            .select('id', 'departmentName', 'personName')
+            .where('status', 1)
+            .orderBy('departmentName', 'asc');
+
+        res.status(200).json({
+            status: 'success',
+            data: departments
+        });
+    } catch (error) {
+        console.error('Error fetching departments:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch departments'
+        });
+    }
+};
+
+exports.createComplaint = async (req, res) => {
+    try {
+        const {
+            customerId,
+            category,
+            assignmentPerson,
+            status,
+            description
+        } = req.body;
+
+        if (!customerId || !category || !assignmentPerson || !status) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Customer ID, Category, Department, and Status are required'
+            });
+        }
+
+        const [newComplaintId] = await db('complaints').insert({
+            customerId,
+            category,
+            assignmentPerson,
+            status,
+            description,
+            createdAt: db.fn.now(),
+            updatedAt: db.fn.now()
+        });
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Complaint created successfully',
+            data: { id: newComplaintId }
+        });
+    } catch (error) {
+        console.error('Error creating complaint:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to create complaint'
+        });
+    }
+};

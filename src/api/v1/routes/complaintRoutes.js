@@ -3,5 +3,8 @@ const router = express.Router();
 const complaintController = require('../controllers/complaintController');
 
 router.get('/', complaintController.getComplaints);
+router.get('/categories', complaintController.getCategories);
+router.get('/departments', complaintController.getDepartments);
+router.post('/', complaintController.createComplaint);
 
 module.exports = router;
