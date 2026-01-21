@@ -1,4 +1,5 @@
 const db = require('../../../database/db');
+const { sendEmail } = require('../../../utils/emailService');
 
 exports.getComplaints = async (req, res) => {
     try {
@@ -181,6 +182,38 @@ exports.createComplaint = async (req, res) => {
         }
 
         const [newComplaintId] = await db('complaints').insert(insertData);
+
+        // Send Email Notification
+        try {
+            const [recipient] = await db('departments').where('id', assignmentPerson).select('leadEmail', 'personName');
+            const [customer] = await db('customerDetails').where('customerId', customerId).select('customerName');
+
+            if (recipient && recipient.leadEmail) {
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                const customerLink = `${frontendUrl}/customers/${customerId}`;
+
+                await sendEmail({
+                    to: recipient.leadEmail,
+                    subject: `New Complaint Assigned: #${newComplaintId}`,
+                    html: `
+                        <h3>New Complaint Notification</h3>
+                        <p>Hello ${recipient.personName || 'Team'},</p>
+                        <p>A new complaint has been assigned to you.</p>
+                        <ul>
+                            <li><strong>Complaint ID:</strong> #${newComplaintId}</li>
+                            <li><strong>Customer:</strong> ${customer ? customer.customerName : 'N/A'}</li>
+                            <li><strong>Description:</strong> ${description || 'No description provided'}</li>
+                        </ul>
+                        <p>You can view the customer details here: <a href="${customerLink}">${customerLink}</a></p>
+                        <br>
+                        <p>Regards,<br>Farmkart CRM System</p>
+                    `
+                });
+            }
+        } catch (emailError) {
+            console.error('Failed to send notification email:', emailError);
+            // We don't return an error to the user since the complaint was already created successfully
+        }
 
         res.status(201).json({
             status: 'success',
