@@ -195,3 +195,48 @@ exports.createComplaint = async (req, res) => {
         });
     }
 };
+
+exports.updateComplaintStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Status is required'
+            });
+        }
+
+        const updateData = {
+            status,
+            updatedAt: db.fn.now()
+        };
+
+        if (status == 2) {
+            updateData.resolveDate = db.fn.now();
+        }
+
+        const affectedRows = await db('complaints')
+            .where('id', id)
+            .update(updateData);
+
+        if (affectedRows === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Complaint not found'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Complaint status updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating complaint status:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update complaint status'
+        });
+    }
+};
