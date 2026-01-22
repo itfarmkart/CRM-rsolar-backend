@@ -29,7 +29,8 @@ exports.getComplaints = async (req, res) => {
                 'd.personName as assignedPerson',
                 'c.customerName',
                 'cat.name as categoryName',
-                'd.departmentName'
+                'd.departmentName',
+                'cp.description'
             );
 
         // Date Range Filter (on createdAt)
@@ -73,8 +74,7 @@ exports.getComplaints = async (req, res) => {
             'Assigned Person': 'd.personName',
             'Customer': 'c.customerName',
             'Category': 'cat.name',
-            'Department': 'd.departmentName',
-            'Description': 'cp.description'
+            'Department': 'd.departmentName'
         };
 
         if (sortBy && sortMapping[sortBy]) {
