@@ -5,6 +5,7 @@ const complaintController = require('../controllers/complaintController');
 router.get('/', complaintController.getComplaints);
 router.get('/categories', complaintController.getCategories);
 router.get('/departments', complaintController.getDepartments);
+router.get('/assign-reminder', complaintController.assignReminder);
 router.post('/', complaintController.createComplaint);
 router.patch('/:id/status', complaintController.updateComplaintStatus);
 

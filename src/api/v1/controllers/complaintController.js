@@ -73,7 +73,8 @@ exports.getComplaints = async (req, res) => {
             'Assigned Person': 'd.personName',
             'Customer': 'c.customerName',
             'Category': 'cat.name',
-            'Department': 'd.departmentName'
+            'Department': 'd.departmentName',
+            'Description': 'cp.description'
         };
 
         if (sortBy && sortMapping[sortBy]) {
@@ -282,6 +283,55 @@ exports.updateComplaintStatus = async (req, res) => {
                 }
             } catch (emailError) {
                 console.error('Failed to send resolution notification email:', emailError);
+            }
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Complaint status updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating complaint status:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update complaint status'
+        });
+    }
+};
+
+exports.assignReminder = async (req, res) => {
+    try {
+
+        const complaint = await db('complaints').select('*');
+        for (let i = 0; i < complaint.length; i++) {
+            const createdAt = new Date(complaint[i].createdAt);
+            const currentDate = new Date();
+            const timeDiff = currentDate - createdAt;
+            const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            if (daysDiff > 2 && complaint[i].status == 1) {
+
+                console.log('complaint', complaint)
+
+                try {
+                    const complaint = await db('complaints').where('id', id).select('customerId').first();
+                    if (complaint) {
+                        const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
+                        await sendEmail({
+                            to: 'sachinpal@farmkart.com',
+                            subject: `Complaint Resolved: #${id}`,
+                            html: `
+                            <h3>Complaint Resolved Notification</h3>
+                            <p>Hello Sachin,</p>
+                            <p>Complaint <strong>#${id}</strong> has been marked as <strong>Resolved</strong> and needs your verification.</p>
+                            <p>You can view the customer details here: <a href="${customerLink}">${customerLink}</a></p>
+                            <br>
+                            <p>Regards,<br>Farmkart CRM System</p>
+                        `
+                        });
+                    }
+                } catch (emailError) {
+                    console.error('Failed to send resolution notification email:', emailError);
+                }
             }
         }
 
