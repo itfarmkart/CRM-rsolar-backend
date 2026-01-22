@@ -261,6 +261,30 @@ exports.updateComplaintStatus = async (req, res) => {
             });
         }
 
+        // Send Email Notification if resolved
+        if (status == 2) {
+            try {
+                const complaint = await db('complaints').where('id', id).select('customerId').first();
+                if (complaint) {
+                    const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
+                    await sendEmail({
+                        to: 'sachinpal@farmkart.com',
+                        subject: `Complaint Resolved: #${id}`,
+                        html: `
+                            <h3>Complaint Resolved Notification</h3>
+                            <p>Hello Sachin,</p>
+                            <p>Complaint <strong>#${id}</strong> has been marked as <strong>Resolved</strong> and needs your verification.</p>
+                            <p>You can view the customer details here: <a href="${customerLink}">${customerLink}</a></p>
+                            <br>
+                            <p>Regards,<br>Farmkart CRM System</p>
+                        `
+                    });
+                }
+            } catch (emailError) {
+                console.error('Failed to send resolution notification email:', emailError);
+            }
+        }
+
         res.status(200).json({
             status: 'success',
             message: 'Complaint status updated successfully'
