@@ -351,15 +351,30 @@ exports.assignReminder = async (req, res) => {
 exports.getComplaintUpdates = async (req, res) => {
     try {
         const { id } = req.params;
+        const { limit = 10, offset = 0 } = req.query;
 
-        const updates = await db('complaintUpdates')
+        // Base query
+        const query = db('complaintUpdates').where('complaint_id', id);
+
+        // Count total
+        const totalCountResult = await query.clone().count('id as total').first();
+        const total = totalCountResult ? totalCountResult.total : 0;
+
+        // Fetch paginated data
+        const updates = await query
             .select('id', 'complaint_id', 'update', 'created_date')
-            .where('complaint_id', id)
-            .orderBy('created_date', 'desc');
+            .orderBy('created_date', 'desc')
+            .limit(parseInt(limit))
+            .offset(parseInt(offset));
 
         res.status(200).json({
             status: 'success',
-            data: updates
+            data: updates,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            }
         });
     } catch (error) {
         console.error('Error fetching complaint updates:', error);
