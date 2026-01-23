@@ -347,3 +347,103 @@ exports.assignReminder = async (req, res) => {
         });
     }
 };
+
+exports.getComplaintUpdates = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const updates = await db('complaintUpdates')
+            .select('id', 'complaint_id', 'update', 'created_date')
+            .where('complaint_id', id)
+            .orderBy('created_date', 'desc');
+
+        res.status(200).json({
+            status: 'success',
+            data: updates
+        });
+    } catch (error) {
+        console.error('Error fetching complaint updates:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch complaint updates'
+        });
+    }
+};
+
+exports.createComplaintUpdate = async (req, res) => {
+    try {
+        const { complaintId, update } = req.body;
+
+        if (!complaintId || !update) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Complaint ID and Update text are required'
+            });
+        }
+
+        const insertData = {
+            complaint_id: complaintId,
+            update: update,
+            created_date: db.fn.now()
+        };
+
+        const [newUpdateId] = await db('complaintUpdates').insert(insertData);
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Complaint update added successfully',
+            data: { id: newUpdateId }
+        });
+    } catch (error) {
+        console.error('Error adding complaint update:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to add complaint update'
+        });
+    }
+};
+
+exports.getComplaintDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const complaint = await db('complaints as cp')
+            .leftJoin('customerDetails as c', 'cp.customerId', 'c.customerId')
+            .leftJoin('complaintCategories as cat', 'cp.category', 'cat.id')
+            .leftJoin('departments as d', 'cp.assignmentPerson', 'd.id')
+            .select(
+                'cp.id',
+                'cp.status',
+                'cp.createdAt as date',
+                'cp.resolveDate as resolutionDate',
+                'd.personName as assignedPerson',
+                'c.customerName',
+                'cat.name as categoryName',
+                'd.departmentName',
+                'cp.description',
+                'cp.customerId',
+                'cp.category',
+                'cp.assignmentPerson'
+            )
+            .where('cp.id', id)
+            .first();
+
+        if (!complaint) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Complaint not found'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: complaint
+        });
+    } catch (error) {
+        console.error('Error fetching complaint details:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch complaint details'
+        });
+    }
+};
