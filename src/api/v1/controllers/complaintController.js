@@ -135,7 +135,7 @@ exports.getDepartments = async (req, res) => {
     try {
         const { id, district } = req.query;
         let query = db('departments')
-            .select('id', 'departmentName', 'personName', 'district')
+            // .select('id', 'departmentName', 'personName', 'district')
             .where('status', 1);
 
         if (id) {
@@ -143,10 +143,10 @@ exports.getDepartments = async (req, res) => {
             query = query.whereIn('id', ids);
         }
 
-        if (district) {
-            const districts = district.split(',').map(item => item.trim());
-            query = query.whereIn('district', districts);
-        }
+        // if (district) {
+        //     const districts = district.split(',').map(item => item.trim());
+        //     query = query.whereIn('district', districts);
+        // }
 
         const departments = await query.orderBy('departmentName', 'asc');
 
