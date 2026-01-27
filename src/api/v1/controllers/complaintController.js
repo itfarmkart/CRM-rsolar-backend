@@ -133,10 +133,22 @@ exports.getCategories = async (req, res) => {
 
 exports.getDepartments = async (req, res) => {
     try {
-        const departments = await db('departments')
-            .select('id', 'departmentName', 'personName')
-            .where('status', 1)
-            .orderBy('departmentName', 'asc');
+        const { id, district } = req.query;
+        let query = db('departments')
+            .select('id', 'departmentName', 'personName', 'district')
+            .where('status', 1);
+
+        if (id) {
+            const ids = id.split(',').map(item => item.trim());
+            query = query.whereIn('id', ids);
+        }
+
+        if (district) {
+            const districts = district.split(',').map(item => item.trim());
+            query = query.whereIn('district', districts);
+        }
+
+        const departments = await query.orderBy('departmentName', 'asc');
 
         res.status(200).json({
             status: 'success',
@@ -161,10 +173,10 @@ exports.createComplaint = async (req, res) => {
             description
         } = req.body;
 
-        if (!customerId || !category || !assignmentPerson || !status) {
+        if (!customerId || !category || !assignmentPerson) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Customer ID, Category, Department, and Status are required'
+                message: 'Customer ID, Category, Department are required'
             });
         }
 
@@ -172,15 +184,12 @@ exports.createComplaint = async (req, res) => {
             customerId,
             category,
             assignmentPerson,
-            status,
+            status: 1,
             description,
             createdAt: db.fn.now(),
             updatedAt: db.fn.now()
         }
 
-        if (status == 2) {
-            insertData.resolveDate = db.fn.now();
-        }
 
         const [newComplaintId] = await db('complaints').insert(insertData);
 
