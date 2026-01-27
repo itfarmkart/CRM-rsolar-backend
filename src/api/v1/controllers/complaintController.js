@@ -114,7 +114,7 @@ exports.getComplaints = async (req, res) => {
 exports.getCategories = async (req, res) => {
     try {
         const categories = await db('complaintCategories')
-            .select('id', 'name')
+            // .select('id', 'name')
             .where('status', 1)
             .orderBy('name', 'asc');
 
