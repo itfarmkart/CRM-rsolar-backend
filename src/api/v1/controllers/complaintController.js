@@ -264,6 +264,10 @@ exports.updateComplaintStatus = async (req, res) => {
             updateData.resolveDate = db.fn.now();
         }
 
+        if (status == 3) {
+            updateData.varifyDate = db.fn.now();
+        }
+
         const affectedRows = await db('complaints')
             .where('id', id)
             .update(updateData);
