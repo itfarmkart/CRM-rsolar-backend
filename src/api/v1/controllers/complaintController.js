@@ -14,7 +14,8 @@ exports.getComplaints = async (req, res) => {
             order = 'desc',
             startDate,
             endDate,
-            customerId
+            customerId,
+            assignedEmail
         } = req.query;
 
         let query = db('complaints as cp')
@@ -54,6 +55,9 @@ exports.getComplaints = async (req, res) => {
         // Filters
         if (status.length > 0) {
             query = query.whereIn('cp.status', status);
+        }
+        if (assignedEmail) {
+            query = query.where('d.email', assignedEmail);
         }
         if (categoryId) {
             query = query.where('cp.category', categoryId);
