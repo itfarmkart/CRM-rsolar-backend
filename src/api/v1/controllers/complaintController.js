@@ -17,7 +17,7 @@ exports.getComplaints = async (req, res) => {
             customerId,
             assignedEmail
         } = req.query;
-
+        // console.log('status', status)
         let query = db('complaints as cp')
             .leftJoin('customerDetails as c', 'cp.customerId', 'c.customerId')
             .leftJoin('complaintCategories as cat', 'cp.category', 'cat.id')
@@ -53,11 +53,11 @@ exports.getComplaints = async (req, res) => {
         }
 
         // Filters
-        if (status.length > 0) {
-            query = query.whereIn('cp.status', status);
+        if (status && status.length > 0) {
+            query = query.whereIn('cp.status', status.split(',').map(s => s.trim()));
         }
         if (assignedEmail) {
-            query = query.where('d.email', assignedEmail);
+            query = query.where('d.leadEmail', assignedEmail);
         }
         if (categoryId) {
             query = query.where('cp.category', categoryId);
@@ -472,6 +472,23 @@ exports.getComplaintDetails = async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch complaint details'
+        });
+    }
+};
+
+exports.getAuthEmails = async (req, res) => {
+    try {
+        const authEmails = await db('complaintEmailsAuth').select('*');
+
+        res.status(200).json({
+            status: 'success',
+            data: authEmails
+        });
+    } catch (error) {
+        console.error('Error fetching auth emails:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch auth emails'
         });
     }
 };

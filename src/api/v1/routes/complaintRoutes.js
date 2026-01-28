@@ -9,6 +9,7 @@ router.get('/assign-reminder', complaintController.assignReminder);
 router.post('/', complaintController.createComplaint);
 router.patch('/:id/status', complaintController.updateComplaintStatus);
 router.get('/:id/updates', complaintController.getComplaintUpdates);
+router.get('/auth-emails', complaintController.getAuthEmails);
 router.get('/:id', complaintController.getComplaintDetails);
 router.post('/updates', complaintController.createComplaintUpdate);
 
