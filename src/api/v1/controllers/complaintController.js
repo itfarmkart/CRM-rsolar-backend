@@ -52,8 +52,8 @@ exports.getComplaints = async (req, res) => {
         }
 
         // Filters
-        if (status) {
-            query = query.where('cp.status', status);
+        if (status.length > 0) {
+            query = query.whereIn('cp.status', status);
         }
         if (categoryId) {
             query = query.where('cp.category', categoryId);
