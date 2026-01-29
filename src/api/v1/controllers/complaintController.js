@@ -497,3 +497,61 @@ exports.getAuthEmails = async (req, res) => {
         });
     }
 };
+
+exports.getDepartmentWiseNotVerifiedComplaints = async (req, res) => {
+    try {
+        // 1. Fetch all active departments to ensure they appear in the response
+        const allDepartments = await db('departments')
+            .where('status', 1)
+            .orderBy('departmentName', 'asc');
+
+        // 2. Initialize the result object with empty arrays for each department
+        const grouped = {};
+        allDepartments.forEach(dept => {
+            if (dept.departmentName) {
+                grouped[dept.departmentName] = [];
+            }
+        });
+
+        // 3. Fetch not verified complaints
+        const complaints = await db('complaints as cp')
+            .leftJoin('customerDetails as c', 'cp.customerId', 'c.customerId')
+            .leftJoin('complaintCategories as cat', 'cp.category', 'cat.id')
+            .leftJoin('departments as d', 'cp.assignmentPerson', 'd.id')
+            .select(
+                'cp.id',
+                'cp.status',
+                'cp.createdAt as date',
+                'cp.resolveDate as resolutionDate',
+                'd.personName as assignedPerson',
+                'c.customerName',
+                'cat.name as categoryName',
+                'd.departmentName',
+                'cp.description'
+            )
+            // .whereNot('cp.status', 3)
+            .orderBy('d.departmentName', 'asc');
+
+        // 4. Distribute complaints into the grouped object
+        complaints.forEach(complaint => {
+            const deptName = complaint.departmentName;
+            if (deptName) {
+                if (!grouped[deptName]) {
+                    grouped[deptName] = []; // Handle case if department status != 1 but has complaints
+                }
+                grouped[deptName].push(complaint);
+            }
+        });
+
+        res.status(200).json({
+            status: 'success',
+            data: grouped
+        });
+    } catch (error) {
+        console.error('Error fetching department wise not verified complaints:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch complaints'
+        });
+    }
+};
