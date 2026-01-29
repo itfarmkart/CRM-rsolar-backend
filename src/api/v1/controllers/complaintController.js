@@ -523,13 +523,14 @@ exports.getDepartmentWiseNotVerifiedComplaints = async (req, res) => {
                 'cp.status',
                 'cp.createdAt as date',
                 'cp.resolveDate as resolutionDate',
+                'cp.varifyDate as varifyDate',
                 'd.personName as assignedPerson',
                 'c.customerName',
                 'cat.name as categoryName',
                 'd.departmentName',
                 'cp.description'
             )
-            // .whereNot('cp.status', 3)
+            .whereNot('cp.status', 3)
             .orderBy('d.departmentName', 'asc');
 
         // 4. Distribute complaints into the grouped object
