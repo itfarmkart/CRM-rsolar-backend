@@ -451,6 +451,7 @@ exports.getComplaintDetails = async (req, res) => {
                 'cp.createdAt as date',
                 'cp.resolveDate as resolutionDate',
                 'd.personName as assignedPerson',
+                'd.leadEmail as leadEmail',
                 'c.customerName',
                 'cat.name as categoryName',
                 'd.departmentName',
