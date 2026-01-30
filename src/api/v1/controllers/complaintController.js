@@ -29,6 +29,7 @@ exports.getComplaints = async (req, res) => {
                 'cp.resolveDate as resolutionDate',
                 'cp.varifyDate as varifyDate',
                 'd.personName as assignedPerson',
+                'd.leadEmail as leadEmail',
                 'c.customerName',
                 'cat.name as categoryName',
                 'd.departmentName',
