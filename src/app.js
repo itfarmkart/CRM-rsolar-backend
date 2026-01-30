@@ -18,7 +18,8 @@ const corsOptions = {
             'http://localhost:4200',
             'http://localhost:3000',
             'http://localhost:4000',
-            "http://localhost:8080"
+            'http://localhost:8080',
+            'http://127.0.0.1:8080'
             // Add your production frontend URL here when deployed
             // 'https://your-frontend-domain.com'
         ];
