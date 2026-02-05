@@ -15,4 +15,7 @@ router.use('/complaints', require('./complaintRoutes'));
 // Allowed Emails
 router.use('/allowed-emails', require('./allowedEmailsRoutes'));
 
+// O&M Platform
+router.use('/om-platform', require('./omPlatformRoutes'));
+
 module.exports = router;
