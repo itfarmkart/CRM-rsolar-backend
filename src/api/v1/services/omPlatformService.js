@@ -109,16 +109,21 @@ class OMPlatformService {
 
         // 3. Map customer data with FoxEss device data
         let mappedDevices = customers.map(customer => {
-            const device = foxDevices.find(d => d.sn === customer.solar_device_id);
+            const device = foxDevices.find(d => d.deviceSN === customer.solar_device_id);
+            console.log('device', device)
+            let status = 'Inactive';
+            if (device) {
+                status = device.status === 1 ? 'Online' : (device.status === 2 ? 'Fault' : 'Inactive');
+            }
             return {
                 siteId: customer.solar_device_id,
                 customerName: customer.customerName,
                 mobileNumber: customer.mobileNumber,
                 district: customer.district,
-                status: device ? (device.status === 1 || device.status === '1' ? 'Active' : 'Inactive') : 'Unknown',
-                generationHealth: device ? (device.status === 1 || device.status === '1' ? 'Optimal' : 'Offline') : 'Offline',
-                lastSync: device ? device.lastSeen : 'Never', // FoxEss 'lastSeen' is usually the sync time
-                financialStatus: 'Paid' // Placeholder as per screenshot, would need more DB lookups
+                status: status,
+                generationHealth: device ? (device.status === 1 || device.status === '1' ? 'Online' : (device.status === 2 || device.status === '2' ? 'Fault' : 'Offline')) : 'Offline',
+                lastSync: device ? device.lastSync : 'Never', // Updated from lastSeen to lastSync
+                financialStatus: 'Paid' // Placeholder as per screenshot
             };
         });
 
