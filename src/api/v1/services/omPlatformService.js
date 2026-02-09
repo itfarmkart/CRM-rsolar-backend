@@ -129,7 +129,7 @@ class OMPlatformService {
 
         // 4. Client-side filter for status (since FoxEss data isn't in DB)
         if (status) {
-            mappedDevices = mappedDevices.filter(d => d.status.toLowerCase() === status.toLowerCase());
+            mappedDevices = mappedDevices.filter(d => d.status == status);
         }
 
         return {
