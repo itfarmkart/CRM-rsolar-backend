@@ -111,16 +111,16 @@ class OMPlatformService {
         let mappedDevices = customers.map(customer => {
             const device = foxDevices.find(d => d.deviceSN === customer.solar_device_id);
             console.log('device', device)
-            let status = 'Inactive';
+            let statuss = 'Inactive';
             if (device) {
-                status = device.status === 1 ? 'Online' : (device.status === 2 ? 'Fault' : 'Inactive');
+                statuss = device.status === 1 ? 'Online' : (device.status === 2 ? 'Fault' : 'Inactive');
             }
             return {
                 siteId: customer.solar_device_id,
                 customerName: customer.customerName,
                 mobileNumber: customer.mobileNumber,
                 district: customer.district,
-                status: status,
+                status: statuss,
                 generationHealth: device ? (device.status === 1 || device.status === '1' ? 'Online' : (device.status === 2 || device.status === '2' ? 'Fault' : 'Offline')) : 'Offline',
                 lastSync: device ? device.lastSync : 'Never', // Updated from lastSeen to lastSync
                 financialStatus: 'Paid' // Placeholder as per screenshot
