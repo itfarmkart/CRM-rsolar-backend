@@ -51,3 +51,33 @@ exports.getOMDevices = async (req, res) => {
         });
     }
 };
+
+/**
+ * Get detailed information for a specific site
+ */
+exports.getSiteDetail = async (req, res) => {
+    try {
+        const { siteId } = req.params;
+
+        if (!siteId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'siteId is required'
+            });
+        }
+
+        const { period = '30D' } = req.query;
+        const detail = await omPlatformService.getSiteDetail(siteId, period);
+
+        res.status(200).json({
+            status: 'success',
+            data: detail
+        });
+    } catch (error) {
+        console.error('Error in getSiteDetail:', error);
+        res.status(error.message === 'Site not found' ? 404 : 500).json({
+            status: 'error',
+            message: error.message || 'Failed to fetch O&M site detail'
+        });
+    }
+};

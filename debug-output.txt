@@ -1,0 +1,10 @@
+Starting exhaustive signature test...
+[Test] PathSig: /op/v0/device/list, NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: /op/v0/device/list, NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: /op/v0/device/list, NL: "\\r\\n" -> errno: 40257, msg: Parameters do not meet expectations. Please reenter
+[Test] PathSig: /op/v0/device/list, NL: "\\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: op/v0/device/list, NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: op/v0/device/list, NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: op/v0/device/list, NL: "\\r\\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+[Test] PathSig: op/v0/device/list, NL: "\\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Exhaustive test complete.

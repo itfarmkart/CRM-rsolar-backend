@@ -22,6 +22,7 @@ exports.getComplaints = async (req, res) => {
             .leftJoin('customerDetails as c', 'cp.customerId', 'c.customerId')
             .leftJoin('complaintCategories as cat', 'cp.category', 'cat.id')
             .leftJoin('departments as d', 'cp.assignmentPerson', 'd.id')
+            .leftJoin('parentComplaintCategories as cc', 'cc.id', 'cat.parent_id')
             .select(
                 'cp.id',
                 'cp.status',
@@ -33,7 +34,9 @@ exports.getComplaints = async (req, res) => {
                 'c.customerName',
                 'cat.name as categoryName',
                 'd.departmentName',
-                'cp.description'
+                'cp.description',
+                'cc.name as parentCategoryName',
+                'cat.parent_id as parentCategoryId',
             );
 
         // Date Range Filter (on createdAt)
@@ -122,6 +125,7 @@ exports.getCategories = async (req, res) => {
         const categories = await db('complaintCategories')
             // .select('id', 'name')
             .where('status', 1)
+            .where('parent_id', req.query.parentId)
             .orderBy('name', 'asc');
 
         res.status(200).json({
@@ -133,6 +137,25 @@ exports.getCategories = async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch categories'
+        });
+    }
+};
+
+exports.getParentCategories = async (req, res) => {
+    try {
+        const categories = await db('parentComplaintCategories')
+            .where('status', 1)
+            .orderBy('name', 'asc');
+
+        res.status(200).json({
+            status: 'success',
+            data: categories
+        });
+    } catch (error) {
+        console.error('Error fetching parent complaint categories:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch parent categories'
         });
     }
 };

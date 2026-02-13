@@ -1,0 +1,14 @@
+Testing all permutations of signature order...
+Order: [/op/v0/device/list, fed5a7a7-5291-46cc-a55a-b637d525fe3b, 1770798496869], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [/op/v0/device/list, fed5a7a7-5291-46cc-a55a-b637d525fe3b, 1770798497803], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [/op/v0/device/list, 1770798498099, fed5a7a7-5291-46cc-a55a-b637d525fe3b], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [/op/v0/device/list, 1770798498395, fed5a7a7-5291-46cc-a55a-b637d525fe3b], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [fed5a7a7-5291-46cc-a55a-b637d525fe3b, /op/v0/device/list, 1770798498699], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [fed5a7a7-5291-46cc-a55a-b637d525fe3b, /op/v0/device/list, 1770798498996], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [fed5a7a7-5291-46cc-a55a-b637d525fe3b, 1770798499308, /op/v0/device/list], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [fed5a7a7-5291-46cc-a55a-b637d525fe3b, 1770798499605, /op/v0/device/list], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [1770798499898, /op/v0/device/list, fed5a7a7-5291-46cc-a55a-b637d525fe3b], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [1770798500191, /op/v0/device/list, fed5a7a7-5291-46cc-a55a-b637d525fe3b], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [1770798500488, fed5a7a7-5291-46cc-a55a-b637d525fe3b, /op/v0/device/list], NL: "\r\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+Order: [1770798500784, fed5a7a7-5291-46cc-a55a-b637d525fe3b, /op/v0/device/list], NL: "\n" -> errno: 40256, msg: Please close and reopen this page illegal signature
+All order permutations complete.
