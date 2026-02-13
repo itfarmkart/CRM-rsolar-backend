@@ -552,6 +552,7 @@ exports.getDepartmentWiseNotVerifiedComplaints = async (req, res) => {
                 'd.personName as assignedPerson',
                 'c.customerName',
                 'cat.name as categoryName',
+                'cat.parent_id as parentCategoryId',
                 'd.departmentName',
                 'cp.description'
             )
