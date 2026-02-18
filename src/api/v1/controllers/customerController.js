@@ -1,4 +1,5 @@
 const db = require('../../../database/db');
+const zohoService = require('../services/zohoService');
 
 exports.getCustomers = async (req, res) => {
     try {
@@ -112,6 +113,7 @@ exports.getCustomerById = async (req, res) => {
             .leftJoin('customerAgreementDetails as ca', 'c.customerId', 'ca.customer_id')
             .leftJoin('panelDetails as p', 'c.customerId', 'p.customer_id')
             .leftJoin('inverterDetails as i', 'c.customerId', 'i.customer_id')
+            .leftJoin('leegality as l', 'c.mobileNumber', 'l.mobileno')
             .select(
                 'c.*',
                 'ca.agreementSignatureDate',
@@ -134,7 +136,8 @@ exports.getCustomerById = async (req, res) => {
                 'i.itemName as inverterItemName',
                 'i.manufacturerName as inverterManufacturer',
                 'i.partNumber as inverterPartNumber',
-                'i.serialNumber as inverterSerialNumber'
+                'i.serialNumber as inverterSerialNumber',
+                'l.signedDate'
             )
             .where('c.customerId', id)
             .first();
@@ -180,6 +183,94 @@ exports.getDistricts = async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch districts'
+        });
+    }
+};
+
+exports.getZohoInventoryDetails = async (req, res) => {
+    try {
+        const { mobileNumber } = req.params;
+
+        if (!mobileNumber) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Mobile number is required'
+            });
+        }
+
+        const inventoryDetails = await zohoService.getInventoryDetailsByMobile(mobileNumber);
+
+        res.status(200).json({
+            status: 'success',
+            data: inventoryDetails
+        });
+    } catch (error) {
+        console.error('Error fetching Zoho inventory details:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message || 'Failed to fetch Zoho inventory details'
+        });
+    }
+};
+
+// 5. Get all Zoho customers with invoices
+exports.listAllZohoInvoicedCustomers = async (req, res) => {
+    try {
+        const { limit } = req.query;
+        const customers = await zohoService.getAllCustomersWithInvoices(limit || 100);
+
+        res.status(200).json({
+            status: 'success',
+            count: customers.length,
+            data: customers
+        });
+
+    } catch (error) {
+        console.error('Error listing invoiced customers:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message || 'Failed to list invoiced customers'
+        });
+    }
+};
+
+exports.getZohoInventoryBill = async (req, res) => {
+    try {
+        const { mobileNumber } = req.params;
+
+        if (!mobileNumber) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Mobile number is required'
+            });
+        }
+
+        // 1. Find the invoice to get the ID
+        const details = await zohoService.getInventoryDetailsByMobile(mobileNumber);
+
+        if (!details || details.length === 0 || !details[0].invoiceId) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No invoice found for this mobile number'
+            });
+        }
+
+        // Use the first (latest) invoice found
+        const inventoryDetails = details[0];
+
+        // 2. Fetch the PDF
+        const pdfBuffer = await zohoService.getInvoicePdf(inventoryDetails.invoiceId);
+
+        // 3. Send the PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Bill_${inventoryDetails.invoiceNumber}.pdf"`);
+        res.status(200).send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Error fetching Zoho inventory bill:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message || 'Failed to fetch Zoho inventory bill'
         });
     }
 };

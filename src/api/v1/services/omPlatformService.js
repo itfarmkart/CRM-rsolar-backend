@@ -171,8 +171,8 @@ class OMPlatformService {
         const path = '/op/v0/device/real/query';
         const headers = this.getHeaders(path);
         try {
-            const response = await axios.get(this.url + path, { params: { sn: deviceSN }, headers });
-            return response.data?.result || [];
+            const response = await axios.post(this.url + path, { sn: deviceSN, variables: [] }, { headers });
+            return response.data?.result?.[0]?.datas || [];
         } catch (error) {
             console.error('FoxEss Real-time API Error:', error.response?.data || error.message);
             return [];
@@ -395,27 +395,18 @@ class OMPlatformService {
             .select('unit_date', 'daily_units')
             .orderBy('unit_date', 'asc');
 
-        const isInactive = techSpecs.status === 3 || techSpecs.status === '3';
         const powerVar = realTimeData.find(v => v.variable === 'power' || v.variable === 'generationPower');
         let currentPower = powerVar ? parseFloat(powerVar.value || 0) : 0;
-
-        if (isInactive) {
-            currentPower = 0;
-        }
 
         // 6. Fetch historical power for growth (1 hour ago)
         const oneHourAgo = Date.now() - (60 * 60 * 1000);
         const lastHourPower = await this.getDeviceHistoryPower(deviceSN, oneHourAgo - (15 * 60 * 1000), oneHourAgo + (15 * 60 * 1000));
 
-        console.log(`[DEBUG] powerGrowth calculation for ${deviceSN}: Current=${currentPower}, lastHour=${lastHourPower}`);
-
         let powerGrowth = 0;
-        if (!isInactive) {
-            if (lastHourPower > 0) {
-                powerGrowth = ((currentPower - lastHourPower) / lastHourPower) * 100;
-            } else if (currentPower > 0 && lastHourPower === 0) {
-                powerGrowth = 100;
-            }
+        if (lastHourPower > 0) {
+            powerGrowth = ((currentPower - lastHourPower) / lastHourPower) * 100;
+        } else if (currentPower > 0 && lastHourPower === 0) {
+            powerGrowth = 100;
         }
 
         // 7. Prepare Unified Event Log
@@ -490,8 +481,8 @@ class OMPlatformService {
                 status: techSpecs.status === 1 ? 'Active' : (techSpecs.status === 2 ? 'Fault' : 'Inactive'),
             },
             performance: {
-                currentPower: currentPower,
-                powerGrowth: parseFloat(powerGrowth.toFixed(2)),
+                currentPower: techSpecs.status === 1 ? currentPower : 0,
+                powerGrowth: techSpecs.status === 1 ? parseFloat(powerGrowth.toFixed(2)) : 0,
                 totalYield: lifetimeYieldResult?.totalYield || 0,
                 yieldGrowth: parseFloat(yieldGrowth.toFixed(2))
             },
