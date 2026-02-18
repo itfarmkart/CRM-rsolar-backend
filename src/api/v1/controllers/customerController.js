@@ -168,7 +168,7 @@ exports.getCustomerById = async (req, res) => {
         const name = customer.customerName.split(' ');
         customer.customerName = name[0].charAt(0).toUpperCase() + name[0].slice(1) + ' ' + name[1].charAt(0).toUpperCase() + name[1].slice(1);
 
-        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels${customer.customerName}-${customer.mobileNumber}.pdf`;
+        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels/${customer.customerName}-${customer.mobileNumber}.pdf`;
         customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/${customer.customerName}-${customer.leegality_document_id}.pdf`;
 
         const warrantyKey = getS3KeyFromUrl(customer.warrentyCardUrl);
