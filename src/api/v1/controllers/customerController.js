@@ -150,7 +150,8 @@ exports.getCustomerById = async (req, res) => {
                 message: 'Customer not found'
             });
         }
-
+        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels${customer.customerName}-${customer.mobileNumber}.pdf`
+        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/invoices/${customer.customerName}-${customer.mobileNumber}.pdf`
         res.status(200).json({
             status: 'success',
             data: customer

@@ -1,0 +1,15 @@
+﻿[dotenv@17.2.3] injecting env (19) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöä add secrets lifecycle management: https://dotenvx.com/ops
+--- DEBUG PDF FOR: 9009391179 ---
+Refreshing Zoho Access Token...
+Zoho Access Token refreshed successfully
+Searching Zoho Invoices (search_text) for: 9009391179
+No invoices found by search_text. Searching contacts for: 9009391179
+Checking contact search for variant: 9009391179
+Found contact: Mukesh Patidar - N3676007641 (ID: 2344751000018973022). Fetching their invoices...
+Found Invoice: INV-000522 (ID: 2344751000019490541)
+Requesting PDF URL: https://www.zohoapis.in/inventory/v1/invoices/2344751000019490541?organization_id=60037522276&accept=pdf
+PDF Success! Status: 200
+Content-Type: application/pdf;charset=UTF-8
+Buffer length: 86581
+
