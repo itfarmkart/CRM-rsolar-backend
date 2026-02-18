@@ -1,5 +1,6 @@
 const db = require('../../../database/db');
 const zohoService = require('../services/zohoService');
+const s3Service = require('../services/s3Service');
 
 exports.getCustomers = async (req, res) => {
     try {
@@ -151,17 +152,64 @@ exports.getCustomerById = async (req, res) => {
                 message: 'Customer not found'
             });
         }
-        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels${customer.customerName}-${customer.mobileNumber}.pdf`
-        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/invoices/${customer.customerName}-${customer.leegality_document_id}.pdf`
+
+        // Helper function to extract key from S3 URL
+        const getS3KeyFromUrl = (url) => {
+            if (!url) return null;
+            try {
+                const parsedUrl = new URL(url);
+                // Remove leading slash from pathname to get S3 key
+                return decodeURIComponent(parsedUrl.pathname.substring(1));
+            } catch (e) {
+                return null;
+            }
+        };
+        //make customer name first letter upper
+        customer.customerName = customer.customerName.charAt(0).toUpperCase() + customer.customerName.slice(1);
+
+        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels${customer.customerName}-${customer.mobileNumber}.pdf`;
+        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/invoices/${customer.customerName}-${customer.leegality_document_id}.pdf`;
+
+        const warrantyKey = getS3KeyFromUrl(customer.warrentyCardUrl);
+        const agreementKey = getS3KeyFromUrl(customer.agreement);
+
+        customer.isWarrantyCardExist = warrantyKey ? await s3Service.checkObjectExists(warrantyKey) : false;
+        customer.isAgreementExist = agreementKey ? await s3Service.checkObjectExists(agreementKey) : false;
+
         res.status(200).json({
             status: 'success',
             data: customer
         });
     } catch (error) {
-        console.error('Error fetching customer by ID:', error);
+        console.error('Error fetching customer details:', error);
         res.status(500).json({
             status: 'error',
-            message: 'Failed to fetch customer details'
+            message: error.message || 'Failed to fetch customer details'
+        });
+    }
+};
+
+// 7. Verify if an object exists in S3
+exports.verifyS3Object = async (req, res) => {
+    try {
+        const { key } = req.query;
+        if (!key) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'S3 key is required'
+            });
+        }
+
+        const exists = await s3Service.checkObjectExists(key);
+        res.status(200).json({
+            status: 'success',
+            exists: exists
+        });
+    } catch (error) {
+        console.error('Error verifying S3 object:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message || 'Failed to verify S3 object'
         });
     }
 };
