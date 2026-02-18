@@ -137,7 +137,8 @@ exports.getCustomerById = async (req, res) => {
                 'i.manufacturerName as inverterManufacturer',
                 'i.partNumber as inverterPartNumber',
                 'i.serialNumber as inverterSerialNumber',
-                'l.signedDate'
+                'l.signedDate',
+                'l.leegality_document_id'
             )
             .where('c.customerId', id)
             .first();
@@ -151,7 +152,7 @@ exports.getCustomerById = async (req, res) => {
             });
         }
         customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels${customer.customerName}-${customer.mobileNumber}.pdf`
-        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/invoices/${customer.customerName}-${customer.mobileNumber}.pdf`
+        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/invoices/${customer.customerName}-${customer.leegality_document_id}.pdf`
         res.status(200).json({
             status: 'success',
             data: customer
