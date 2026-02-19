@@ -115,6 +115,7 @@ exports.getCustomerById = async (req, res) => {
             .leftJoin('panelDetails as p', 'c.customerId', 'p.customer_id')
             .leftJoin('inverterDetails as i', 'c.customerId', 'i.customer_id')
             .leftJoin('leegality as l', 'c.mobileNumber', 'l.mobileno')
+            .leftJoin('warrenty_cards as w', 'c.mobileNumber', 'w.mobile')
             .select(
                 'c.*',
                 'ca.agreementSignatureDate',
@@ -139,7 +140,9 @@ exports.getCustomerById = async (req, res) => {
                 'i.partNumber as inverterPartNumber',
                 'i.serialNumber as inverterSerialNumber',
                 'l.signedDate',
-                'l.leegality_document_id'
+                'l.leegality_document_id',
+                'l.customer_name',
+                'w.name as warranty_card_name'
             )
             .where('c.customerId', id)
             .first();
@@ -153,23 +156,32 @@ exports.getCustomerById = async (req, res) => {
             });
         }
 
-        // Helper function to extract key from S3 URL
+        // Reverting to simpler name formatting and URL construction
         const getS3KeyFromUrl = (url) => {
             if (!url) return null;
             try {
                 const parsedUrl = new URL(url);
-                // Remove leading slash from pathname to get S3 key
                 return decodeURIComponent(parsedUrl.pathname.substring(1));
             } catch (e) {
                 return null;
             }
         };
-        //make customer name first letter upper last name as well
-        const name = customer.customerName.split(' ');
-        customer.customerName = name[0].charAt(0).toUpperCase() + name[0].slice(1) + ' ' + name[1].charAt(0).toUpperCase() + name[1].slice(1);
 
-        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels/${customer.customerName}-${customer.mobileNumber}.pdf`;
-        customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/${customer.customerName}-${customer.leegality_document_id}.pdf`;
+        const nameParts = customer.customerName.split(' ');
+        if (nameParts.length >= 2) {
+            customer.customerName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) + ' ' + nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1);
+        }
+
+        customer.warrentyCardUrl = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/warrentyCards/panels/${customer.warranty_card_name}-${customer.mobileNumber}.pdf`;
+        customer.agreement = null;
+
+        if (customer.leegality_document_id) {
+            customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/${customer.customer_name}-${customer.leegality_document_id}.pdf`;
+        }
+
+        if (!customer.customer_name) {
+            customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/StampPaperAgreements/${customer.customerName}-${customer.mobileNumber}.pdf`;
+        }
 
         const warrantyKey = getS3KeyFromUrl(customer.warrentyCardUrl);
         const agreementKey = getS3KeyFromUrl(customer.agreement);
