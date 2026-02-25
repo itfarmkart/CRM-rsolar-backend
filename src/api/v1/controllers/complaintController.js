@@ -312,7 +312,7 @@ exports.updateComplaintStatus = async (req, res) => {
                 if (complaint) {
                     const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
                     await sendEmail({
-                        to: 'harshalic@farmkart.com',
+                        to: ['harshalic@myrsolar.com', 'sachinpal@farmkart.com'],
                         subject: `Complaint Resolved: #${id}`,
                         html: `
                             <h3>Complaint Resolved Notification</h3>
