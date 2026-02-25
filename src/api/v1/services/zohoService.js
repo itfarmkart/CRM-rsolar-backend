@@ -178,22 +178,36 @@ class ZohoService {
     /**
      * Fetch all customers who have invoices, including their mobile and latest invoice date
      */
-    async getAllCustomersWithInvoices(limit = 1000) {
-
+    async getAllCustomersWithInvoices() {
         try {
             const token = await this.getAccessToken();
             const config = {
                 headers: { 'Authorization': `Zoho-oauthtoken ${token}` }
             };
 
-            // Fetch recent invoices
-            const url = `${this.baseUrl}invoices?organization_id=${this.orgId}&page=1&per_page=${100000}`;
-            const res = await axios.get(url, config);
-            const invoices = res.data.invoices || [];
-            return invoices;
+            let allInvoices = [];
+            let page = 1;
+            let hasMore = true;
+            const perPage = 200;
+
+            while (hasMore) {
+                const url = `${this.baseUrl}invoices?organization_id=${this.orgId}&page=${page}&per_page=${perPage}&type=invoice`;
+                const res = await axios.get(url, config);
+                const invoices = res.data.invoices || [];
+
+                allInvoices = allInvoices.concat(invoices);
+
+                const pageContext = res.data.page_context;
+                hasMore = pageContext ? pageContext.has_more_page : false;
+                page++;
+
+                if (page > 50) break;
+            }
+
             const customerSummary = new Map();
 
-            for (const inv of invoices) {
+            // Process unique customers from the full list
+            for (const inv of allInvoices) {
                 if (customerSummary.has(inv.customer_id)) continue;
 
                 // Fetch contact details for mobile number
@@ -202,25 +216,25 @@ class ZohoService {
                     const contactRes = await axios.get(contactUrl, config);
                     const c = contactRes.data.contact;
 
-                    // update customerDetails in db if mobile number is not present in db
                     if (c.mobile || c.phone) {
                         let mobileNumber = c.mobile || c.phone;
-                        // Normalize mobile number (remove spaces, dashes, country code)
+                        // Normalize mobile number
                         mobileNumber = mobileNumber.replace(/[\s\-]/g, '').replace(/^(\+91|91)/, '');
-                        //add 25 years to invoice date to get warranty end date
+
+                        // Calculate expiry dates (Warranty 25y, Inverter 10y)
                         const warrantyEndDate = new Date(inv.date);
                         warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 25);
 
-                        //add 10 years to invoice date to get panel expiry date
-                        const inverter = new Date(inv.date);
-                        inverter.setFullYear(inverter.getFullYear() + 10);
+                        const inverterEndDate = new Date(inv.date);
+                        inverterEndDate.setFullYear(inverterEndDate.getFullYear() + 10);
 
+                        // Update local database
                         await db('customerDetails')
                             .where('mobileNumber', mobileNumber)
                             .update({
                                 invoiceDate: inv.date,
-                                panelExpiryDate: warrantyEndDate.toISOString().split('T')[0], // Store as YYYY-MM-DD
-                                inverterExpiryDate: inverter.toISOString().split('T')[0] // Store as YYYY-MM-DD
+                                panelExpiryDate: warrantyEndDate.toISOString().split('T')[0],
+                                inverterExpiryDate: inverterEndDate.toISOString().split('T')[0]
                             });
                     }
 
@@ -231,7 +245,7 @@ class ZohoService {
                         invoiceNumber: inv.invoice_number
                     });
                 } catch (err) {
-                    // console.error(`Failed to fetch contact ${inv.customer_id}:`, err.message);
+                    // console.error(`Failed to fetch contact/update DB for ${inv.customer_id}:`, err.message);
                 }
             }
 

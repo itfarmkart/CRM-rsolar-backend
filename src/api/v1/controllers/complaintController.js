@@ -35,6 +35,7 @@ exports.getComplaints = async (req, res) => {
                 'cat.name as categoryName',
                 'd.departmentName',
                 'cp.description',
+                'cp.varifyDate',
                 'cc.name as parentCategoryName',
                 'cat.parent_id as parentCategoryId',
             );
