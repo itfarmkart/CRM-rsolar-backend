@@ -463,7 +463,7 @@ exports.createComplaintUpdate = async (req, res) => {
                 .first();
 
             if (complaint) {
-                const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
+                const customerLink = `https://crm.myrsolar.com/complaints/${complaintId}`;
                 const recipients = ['sachinpal@farmkart.com'];
                 if (complaint.leadEmail) {
                     recipients.push(complaint.leadEmail);
