@@ -312,11 +312,11 @@ exports.updateComplaintStatus = async (req, res) => {
                 if (complaint) {
                     const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
                     await sendEmail({
-                        to: 'sachinpal@farmkart.com',
+                        to: 'harshalic@farmkart.com',
                         subject: `Complaint Resolved: #${id}`,
                         html: `
                             <h3>Complaint Resolved Notification</h3>
-                            <p>Hello Sachin,</p>
+                            <p>Hello Harshali,</p>
                             <p>Complaint <strong>#${id}</strong> has been marked as <strong>Resolved</strong> and needs your verification.</p>
                             <p>You can view the customer details here: <a href="${customerLink}">${customerLink}</a></p>
                             <br>
@@ -446,6 +446,49 @@ exports.createComplaintUpdate = async (req, res) => {
         };
 
         const [newUpdateId] = await db('complaintUpdates').insert(insertData);
+
+        // Send Email Notification
+        try {
+            const complaint = await db('complaints as cp')
+                .leftJoin('customerDetails as c', 'cp.customerId', 'c.customerId')
+                .leftJoin('departments as d', 'cp.assignmentPerson', 'd.id')
+                .select(
+                    'cp.id',
+                    'd.leadEmail',
+                    'd.personName',
+                    'c.customerName',
+                    'c.customerId'
+                )
+                .where('cp.id', complaintId)
+                .first();
+
+            if (complaint) {
+                const customerLink = `https://crm.myrsolar.com/customers/${complaint.customerId}`;
+                const recipients = ['sachinpal@farmkart.com'];
+                if (complaint.leadEmail) {
+                    recipients.push(complaint.leadEmail);
+                }
+
+                await sendEmail({
+                    to: recipients.join(','),
+                    subject: `New Update on Complaint: #${complaintId}`,
+                    html: `
+                        <h3>Complaint Update Notification</h3>
+                        <p>Hello,</p>
+                        <p>A new update has been added to complaint <strong>#${complaintId}</strong>.</p>
+                        <ul>
+                            <li><strong>Customer:</strong> ${complaint.customerName || 'N/A'}</li>
+                            <li><strong>Update:</strong> "${update}"</li>
+                        </ul>
+                        <p>You can view the customer details here: <a href="${customerLink}">${customerLink}</a></p>
+                        <br>
+                        <p>Regards,<br>Farmkart CRM System</p>
+                    `
+                });
+            }
+        } catch (emailError) {
+            console.error('Failed to send complaint update notification email:', emailError);
+        }
 
         res.status(201).json({
             status: 'success',
