@@ -16,11 +16,5 @@
         "index.js": {
             "maxDuration": 300
         }
-    },
-    "crons": [
-        {
-            "path": "/api/v1/call-recordings/process-pending",
-            "schedule": "* * * * *"
-        }
-    ]
+    }
 }
