@@ -10,8 +10,11 @@
         "NODE_ENV": "production"
     },
     "functions": {
+        "api/**/*.js": {
+            "maxDuration": 300
+        },
         "index.js": {
-            "maxDuration": 60
+            "maxDuration": 300
         }
     }
 }

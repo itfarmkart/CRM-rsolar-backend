@@ -137,26 +137,26 @@ const handleWebhook = async (req, res) => {
         if (payload.call_status === 'answered' && payload.recording_url) {
             console.log(`[Webhook] Condition met. Starting processing for: ${payload.call_id}`);
 
-            // Download recording with Persistence (Up to 100 seconds wait)
+            // Download recording with Aggressive Polling (Catch it faster)
             let downloadUrl = payload.recording_url;
             try {
-                console.log(`[Webhook] Attempting persistent download for ${payload.call_id}...`);
-                // Wait up to 10 retries * 10s = 100 seconds
-                filePath = await callRecordingService.downloadRecording(downloadUrl, 10, 10000);
+                console.log(`[Webhook] Starting aggressive download for ${payload.call_id}...`);
+                // Poll every 3 seconds for up to 15 attempts (~45 seconds total)
+                // Checking more frequently catches the file the moment it's available
+                filePath = await callRecordingService.downloadRecording(downloadUrl, 15, 3000);
             } catch (downloadErr) {
-                console.warn(`[Webhook] Initial URL failed after 100s. Checking API for alternative link...`);
+                console.warn(`[Webhook] Initial URL failed after aggressive polling. Checking API...`);
 
                 try {
                     const freshUrl = await callRecordingService.getRecordingUrl(payload.call_id);
                     if (freshUrl && freshUrl !== downloadUrl) {
-                        console.log(`[Webhook] API found a DIFFERENT URL: ${freshUrl}. Retrying...`);
-                        filePath = await callRecordingService.downloadRecording(freshUrl, 5, 10000);
+                        console.log(`[Webhook] API found a DIFFERENT URL. Retrying once...`);
+                        filePath = await callRecordingService.downloadRecording(freshUrl, 2, 3000);
                     } else {
-                        console.error(`[Webhook] API returned same URL or nothing. Giving up.`);
                         throw downloadErr;
                     }
                 } catch (fallbackErr) {
-                    console.error(`[Webhook] All attempts failed for ${payload.call_id}`);
+                    console.error(`[Webhook] All attempts failed.`);
                     throw downloadErr;
                 }
             }
