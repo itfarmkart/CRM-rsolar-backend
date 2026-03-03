@@ -125,79 +125,73 @@ const processRecordingGemini = async (req, res) => {
 };
 
 const handleWebhook = async (req, res) => {
-    let filePath;
-    try {
-        const payload = req.body;
-        const timestamp = new Date().toISOString();
-        res.status(200).json({ success: true });
-        console.log('Call Recording Webhook Received:', payload.call_id);
+    const payload = req.body;
+    const timestamp = new Date().toISOString();
 
-        // 1. Log payload to file (as requested originally for backup)
-        const logEntry = `[${timestamp}] WEBHOOK RECEIVED: ${JSON.stringify(payload, null, 2)}\n---\n`;
-        // const logPath = path.join(__dirname, '../../../../call_webhooks.log');
-        // fs.appendFileSync(logPath, logEntry);
+    console.log('Call Recording Webhook Received:', payload.call_id || 'unidentified');
 
-        // 2. Process only if it's an answered call with a recording
-        if (payload.call_status === 'answered' && payload.recording_url) {
-            console.log(`Processing answered call: ${payload.call_id}`);
+    // 1. Send immediate response to Smartflo to avoid timeout
+    res.status(200).json({
+        status: 'success',
+        message: 'Webhook received, processing in background'
+    });
 
-            // Download recording
-            filePath = await callRecordingService.downloadRecording(payload.recording_url);
+    // 2. Perform heavy processing in the background
+    // Note: On Vercel, the function might be terminated shortly after the response is sent.
+    // For reliable background processing, a queue or Vercel background functions are usually needed,
+    // but this approach avoids the immediate Smartflo timeout.
+    (async () => {
+        let filePath;
+        try {
+            // Log payload to file if needed (currently commented out as per user's preference)
+            // const logEntry = `[${timestamp}] WEBHOOK RECEIVED: ${JSON.stringify(payload, null, 2)}\n---\n`;
+            // const logPath = path.join(__dirname, '../../../../call_webhooks.log');
+            // fs.appendFileSync(logPath, logEntry);
 
-            // Process with Gemini
-            console.log(`Analyzing audio with Gemini...`);
-            const analysis = await callRecordingService.processAudioWithGemini(filePath);
+            if (payload.call_status === 'answered' && payload.recording_url) {
+                console.log(`[Background] Processing answered call: ${payload.call_id}`);
 
-            // 3. Insert into Database
-            await db('call_recordings').insert({
-                call_id: payload.call_id,
-                customer_mobile_number: payload.caller_id_number,
-                recording_url: payload.recording_url,
-                call_category: analysis.call_category,
-                call_status: analysis.call_status,
-                problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
-                    ? analysis.call_summary.problem_inquiry.join('\n')
-                    : JSON.stringify(analysis.call_summary?.problem_inquiry),
-                solution_response: Array.isArray(analysis.call_summary?.solution_response)
-                    ? analysis.call_summary.solution_response.join('\n')
-                    : JSON.stringify(analysis.call_summary?.solution_response),
-                transcription: analysis.transcription,
-                start_stamp: payload.start_stamp,
-                end_stamp: payload.end_stamp,
-                agent_name: payload.answered_agent_name,
-                agent_number: payload.answered_agent_number,
-                did_number: payload.call_to_number,
-                duration: payload.duration,
-                direction: payload.direction,
-                raw_payload: JSON.stringify(payload)
-            });
+                filePath = await callRecordingService.downloadRecording(payload.recording_url);
 
-            console.log(`Successfully processed and stored call: ${payload.call_id}`);
-        } else {
-            console.log(`Skipping webhook: Call status is ${payload.call_status} or recording_url missing.`);
+                console.log(`[Background] Analyzing audio with Gemini...`);
+                const analysis = await callRecordingService.processAudioWithGemini(filePath);
+
+                console.log(`[Background] Storing results in Database...`);
+                await db('call_recordings').insert({
+                    call_id: payload.call_id,
+                    customer_mobile_number: payload.caller_id_number,
+                    recording_url: payload.recording_url,
+                    call_category: analysis.call_category,
+                    call_status: analysis.call_status,
+                    problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
+                        ? analysis.call_summary.problem_inquiry.join('\n')
+                        : JSON.stringify(analysis.call_summary?.problem_inquiry),
+                    solution_response: Array.isArray(analysis.call_summary?.solution_response)
+                        ? analysis.call_summary.solution_response.join('\n')
+                        : JSON.stringify(analysis.call_summary?.solution_response),
+                    transcription: analysis.transcription,
+                    start_stamp: payload.start_stamp,
+                    end_stamp: payload.end_stamp,
+                    agent_name: payload.answered_agent_name,
+                    agent_number: payload.answered_agent_number,
+                    did_number: payload.call_to_number,
+                    duration: payload.duration,
+                    direction: payload.direction,
+                    raw_payload: JSON.stringify(payload)
+                });
+
+                console.log(`[Background] Successfully processed and stored call: ${payload.call_id}`);
+            } else {
+                console.log(`[Background] Skipping: Call status is ${payload.call_status} or recording_url missing.`);
+            }
+        } catch (error) {
+            console.error('[Background Error] Error in handleWebhook background process:', error.message);
+        } finally {
+            if (filePath && fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
         }
-
-        // Clean up
-        if (filePath && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-
-        res.status(200).json({
-            status: 'success',
-            message: 'Webhook processed successfully'
-        });
-    } catch (error) {
-        console.error('Error in handleWebhook controller:', error.message);
-
-        if (filePath && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-
-        res.status(500).json({
-            status: 'error',
-            message: error.message || 'Internal server error while processing webhook'
-        });
-    }
+    })();
 };
 
 module.exports = {
