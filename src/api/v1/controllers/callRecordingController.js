@@ -1,7 +1,7 @@
 const callRecordingService = require('../services/callRecordingService');
 const fs = require('fs');
 const path = require('path');
-const db = require('../../database/db');
+const db = require('../../../database/db');
 
 const processRecording = async (req, res) => {
     const { call_id, recording_url } = req.body;
