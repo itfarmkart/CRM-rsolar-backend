@@ -250,7 +250,8 @@ Provide the analysis in JSON format only, following this structure to match the 
 
 1. "call_category": A short classification tag (e.g., Technical Support, Sales Inquiry, Complaint, Billing Enquiry, Product Info).
 2. "call_status": A short status tag (e.g., Issue Resolved, Info Provided, Follow-up Needed, Transferred).
-3. "call_summary": An object containing two distinct sections:
+3. "transcription": The full verbatim transcription of the call.
+4. "call_summary": An object containing two distinct sections:
     - "problem_inquiry": Concise bullet points detailing the customer's specific issue or question.
     - "solution_response": Concise bullet points detailing the agent's actions, explanation, or the resolution provided.
 
