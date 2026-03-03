@@ -125,73 +125,86 @@ const processRecordingGemini = async (req, res) => {
 };
 
 const handleWebhook = async (req, res) => {
-    const payload = req.body;
-    const timestamp = new Date().toISOString();
+    let filePath;
+    try {
+        const payload = req.body;
+        const timestamp = new Date().toISOString();
 
-    console.log('Call Recording Webhook Received:', payload.call_id || 'unidentified');
+        console.log(`[Webhook] Incoming call_id: ${payload.call_id || 'unidentified'}`);
+        console.log(`[Webhook] Full Payload:`, JSON.stringify(payload));
 
-    // 1. Send immediate response to Smartflo to avoid timeout
-    res.status(200).json({
-        status: 'success',
-        message: 'Webhook received, processing in background'
-    });
+        // 1. Process only if it's an answered call with a recording
+        if (payload.call_status === 'answered' && payload.recording_url) {
+            console.log(`[Webhook] Condition met. Starting processing for: ${payload.call_id}`);
 
-    // 2. Perform heavy processing in the background
-    // Note: On Vercel, the function might be terminated shortly after the response is sent.
-    // For reliable background processing, a queue or Vercel background functions are usually needed,
-    // but this approach avoids the immediate Smartflo timeout.
-    (async () => {
-        let filePath;
-        try {
-            // Log payload to file if needed (currently commented out as per user's preference)
-            // const logEntry = `[${timestamp}] WEBHOOK RECEIVED: ${JSON.stringify(payload, null, 2)}\n---\n`;
-            // const logPath = path.join(__dirname, '../../../../call_webhooks.log');
-            // fs.appendFileSync(logPath, logEntry);
+            // Download recording
+            filePath = await callRecordingService.downloadRecording(payload.recording_url);
+            console.log(`[Webhook] Downloaded to: ${filePath}`);
 
-            if (payload.call_status === 'answered' && payload.recording_url) {
-                console.log(`[Background] Processing answered call: ${payload.call_id}`);
+            // Process with Gemini
+            console.log(`[Webhook] Analyzing audio with Gemini...`);
+            const analysis = await callRecordingService.processAudioWithGemini(filePath);
+            console.log(`[Webhook] Analysis complete. Category: ${analysis.call_category}`);
 
-                filePath = await callRecordingService.downloadRecording(payload.recording_url);
+            // 2. Insert into Database
+            console.log(`[Webhook] Attempting DB insertion...`);
+            const dbPayload = {
+                call_id: payload.call_id,
+                customer_mobile_number: payload.caller_id_number,
+                recording_url: payload.recording_url,
+                call_category: analysis.call_category,
+                call_status: analysis.call_status,
+                problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
+                    ? analysis.call_summary.problem_inquiry.join('\n')
+                    : JSON.stringify(analysis.call_summary?.problem_inquiry),
+                solution_response: Array.isArray(analysis.call_summary?.solution_response)
+                    ? analysis.call_summary.solution_response.join('\n')
+                    : JSON.stringify(analysis.call_summary?.solution_response),
+                transcription: analysis.transcription,
+                start_stamp: payload.start_stamp,
+                end_stamp: payload.end_stamp,
+                agent_name: payload.answered_agent_name,
+                agent_number: payload.answered_agent_number,
+                did_number: payload.call_to_number,
+                duration: payload.duration,
+                direction: payload.direction,
+                raw_payload: JSON.stringify(payload)
+            };
 
-                console.log(`[Background] Analyzing audio with Gemini...`);
-                const analysis = await callRecordingService.processAudioWithGemini(filePath);
+            await db('call_recordings').insert(dbPayload);
+            console.log(`[Webhook] Successfully stored in DB: ${payload.call_id}`);
 
-                console.log(`[Background] Storing results in Database...`);
-                await db('call_recordings').insert({
-                    call_id: payload.call_id,
-                    customer_mobile_number: payload.caller_id_number,
-                    recording_url: payload.recording_url,
-                    call_category: analysis.call_category,
-                    call_status: analysis.call_status,
-                    problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
-                        ? analysis.call_summary.problem_inquiry.join('\n')
-                        : JSON.stringify(analysis.call_summary?.problem_inquiry),
-                    solution_response: Array.isArray(analysis.call_summary?.solution_response)
-                        ? analysis.call_summary.solution_response.join('\n')
-                        : JSON.stringify(analysis.call_summary?.solution_response),
-                    transcription: analysis.transcription,
-                    start_stamp: payload.start_stamp,
-                    end_stamp: payload.end_stamp,
-                    agent_name: payload.answered_agent_name,
-                    agent_number: payload.answered_agent_number,
-                    did_number: payload.call_to_number,
-                    duration: payload.duration,
-                    direction: payload.direction,
-                    raw_payload: JSON.stringify(payload)
-                });
+            res.status(200).json({
+                status: 'success',
+                message: 'Webhook processed and stored successfully',
+                call_id: payload.call_id
+            });
+        } else {
+            console.log(`[Webhook] Skipping: status=${payload.call_status}, has_url=${!!payload.recording_url}`);
+            res.status(200).json({
+                status: 'skipped',
+                message: 'Recording not available or call not answered'
+            });
+        }
+    } catch (error) {
+        console.error('[Webhook Error] Exception:', error.message);
+        console.error('[Webhook Error] Stack:', error.stack);
 
-                console.log(`[Background] Successfully processed and stored call: ${payload.call_id}`);
-            } else {
-                console.log(`[Background] Skipping: Call status is ${payload.call_status} or recording_url missing.`);
-            }
-        } catch (error) {
-            console.error('[Background Error] Error in handleWebhook background process:', error.message);
-        } finally {
-            if (filePath && fs.existsSync(filePath)) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message || 'Internal server error while processing webhook'
+        });
+    } finally {
+        // Clean up temporary files
+        if (filePath && fs.existsSync(filePath)) {
+            try {
                 fs.unlinkSync(filePath);
+                console.log(`[Webhook] Cleaned up temporary file: ${filePath}`);
+            } catch (cleanupErr) {
+                console.error(`[Webhook] Cleanup failed for ${filePath}:`, cleanupErr.message);
             }
         }
-    })();
+    }
 };
 
 module.exports = {
