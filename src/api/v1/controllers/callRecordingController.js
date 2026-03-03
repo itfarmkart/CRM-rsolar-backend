@@ -272,6 +272,7 @@ const getRecordingsByMobile = async (req, res) => {
 
         const recordings = await db('call_recordings')
             .where('customer_mobile_number', 'like', `%${mobile_number}%`)
+            .where('processing_status', 'completed')
             .orderBy('start_stamp', 'desc');
 
         return res.status(200).json({
