@@ -129,7 +129,7 @@ const handleWebhook = async (req, res) => {
     try {
         const payload = req.body;
         const timestamp = new Date().toISOString();
-
+        res.status(200).json({ success: true });
         console.log('Call Recording Webhook Received:', payload.call_id);
 
         // 1. Log payload to file (as requested originally for backup)
