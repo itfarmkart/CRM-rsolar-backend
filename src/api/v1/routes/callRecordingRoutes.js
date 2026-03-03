@@ -30,4 +30,11 @@ router.post('/process-gemini', callRecordingController.processRecordingGemini);
  */
 router.post('/webhook', callRecordingController.handleWebhook);
 
+/**
+ * @route GET /api/v1/call-recordings/test
+ * @desc Test routing to call-recordings
+ * @access Public
+ */
+router.get('/test', (req, res) => res.json({ message: 'Routing to call-recordings is working!' }));
+
 module.exports = router;
