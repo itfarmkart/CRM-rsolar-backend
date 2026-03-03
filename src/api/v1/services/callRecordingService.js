@@ -64,29 +64,58 @@ const getRecordingUrl = async (callId) => {
 };
 
 /**
- * Downloads the recording file.
+ * Downloads the recording file with retry logic for 404 errors.
  * @param {string} url 
+ * @param {number} retries Number of retries (default 3)
+ * @param {number} delay Delay between retries in ms (default 5000)
  * @returns {Promise<string>} local file path
  */
-const downloadRecording = async (url) => {
-    const extension = path.extname(url.split('?')[0]); // Get extension from URL, ignoring query params
-    const fileName = `recording_${Date.now()}${extension}`;
-    const filePath = path.join(os.tmpdir(), fileName);
+const downloadRecording = async (url, retries = 3, delay = 5000) => {
+    let lastError;
 
-    const writer = fs.createWriteStream(filePath);
+    for (let i = 0; i <= retries; i++) {
+        try {
+            if (i > 0) {
+                console.log(`[Download] Retry attempt ${i}/${retries} after ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
 
-    const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream'
-    });
+            const extension = path.extname(url.split('?')[0]) || '.mp3';
+            const fileName = `recording_${Date.now()}${extension}`;
+            const filePath = path.join(os.tmpdir(), fileName);
 
-    response.data.pipe(writer);
+            const writer = fs.createWriteStream(filePath);
 
-    return new Promise((resolve, reject) => {
-        writer.on('finish', () => resolve(filePath));
-        writer.on('error', reject);
-    });
+            const response = await axios({
+                url,
+                method: 'GET',
+                responseType: 'stream',
+                timeout: 30000 // 30s timeout for download
+            });
+
+            response.data.pipe(writer);
+
+            await new Promise((resolve, reject) => {
+                writer.on('finish', resolve);
+                writer.on('error', reject);
+            });
+
+            console.log(`[Download] Successfully downloaded recording on attempt ${i + 1}`);
+            return filePath;
+        } catch (error) {
+            lastError = error;
+            const status = error.response ? error.response.status : null;
+            console.error(`[Download] Attempt ${i + 1} failed: ${status || error.message}`);
+
+            // If it's not a 404 or 429, we might not want to retry, 
+            // but for Smartflo, 404 is the common "not ready yet" error.
+            if (status !== 404 && status !== 500 && status !== 502) {
+                break;
+            }
+        }
+    }
+
+    throw lastError;
 };
 
 /**

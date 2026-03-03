@@ -137,9 +137,28 @@ const handleWebhook = async (req, res) => {
         if (payload.call_status === 'answered' && payload.recording_url) {
             console.log(`[Webhook] Condition met. Starting processing for: ${payload.call_id}`);
 
-            // Download recording
-            filePath = await callRecordingService.downloadRecording(payload.recording_url);
-            console.log(`[Webhook] Downloaded to: ${filePath}`);
+            // Download recording with retry logic
+            try {
+                console.log(`[Webhook] Attempting to download recording from webhook URL...`);
+                filePath = await callRecordingService.downloadRecording(payload.recording_url);
+            } catch (downloadErr) {
+                console.warn(`[Webhook] Webhook URL failed for ${payload.call_id}. Attempting fallback to fetch fresh URL from API...`);
+
+                // Fallback: Fetch fresh URL from API
+                try {
+                    const freshUrl = await callRecordingService.getRecordingUrl(payload.call_id);
+                    if (freshUrl && freshUrl !== payload.recording_url) {
+                        console.log(`[Webhook] Found different URL via API: ${freshUrl}`);
+                        filePath = await callRecordingService.downloadRecording(freshUrl);
+                    } else {
+                        throw new Error('Fresh URL is the same or not found');
+                    }
+                } catch (fallbackErr) {
+                    console.error(`[Webhook] Fallback also failed: ${fallbackErr.message}`);
+                    throw downloadErr; // Throw original error if fallback also fails
+                }
+            }
+            console.log(`[Webhook] Final Downloaded Path: ${filePath}`);
 
             // Process with Gemini
             console.log(`[Webhook] Analyzing audio with Gemini...`);
