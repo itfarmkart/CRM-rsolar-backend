@@ -137,26 +137,26 @@ const handleWebhook = async (req, res) => {
         if (payload.call_status === 'answered' && payload.recording_url) {
             console.log(`[Webhook] Condition met. Starting processing for: ${payload.call_id}`);
 
-            // Download recording with "Fast Fallback" strategy
+            // Download recording with Persistence (Up to 100 seconds wait)
+            let downloadUrl = payload.recording_url;
             try {
-                console.log(`[Webhook] Attempting fast-download from webhook URL...`);
-                // Try only 2 times (Total ~10s wait) to leave time for AI
-                filePath = await callRecordingService.downloadRecording(payload.recording_url, 1, 5000);
+                console.log(`[Webhook] Attempting persistent download for ${payload.call_id}...`);
+                // Wait up to 10 retries * 10s = 100 seconds
+                filePath = await callRecordingService.downloadRecording(downloadUrl, 10, 10000);
             } catch (downloadErr) {
-                console.warn(`[Webhook] Webhook URL not ready (404). Checking Smartflo API for a direct link immediately...`);
+                console.warn(`[Webhook] Initial URL failed after 100s. Checking API for alternative link...`);
 
                 try {
                     const freshUrl = await callRecordingService.getRecordingUrl(payload.call_id);
-
-                    if (freshUrl) {
-                        console.log(`[Webhook] Found link via API: ${freshUrl}`);
-                        // Try the API link with more patience since we saved time
-                        filePath = await callRecordingService.downloadRecording(freshUrl, 3, 7000);
+                    if (freshUrl && freshUrl !== downloadUrl) {
+                        console.log(`[Webhook] API found a DIFFERENT URL: ${freshUrl}. Retrying...`);
+                        filePath = await callRecordingService.downloadRecording(freshUrl, 5, 10000);
                     } else {
-                        throw new Error('No link returned by API');
+                        console.error(`[Webhook] API returned same URL or nothing. Giving up.`);
+                        throw downloadErr;
                     }
                 } catch (fallbackErr) {
-                    console.error(`[Webhook] Critical: All download attempts failed.`);
+                    console.error(`[Webhook] All attempts failed for ${payload.call_id}`);
                     throw downloadErr;
                 }
             }
