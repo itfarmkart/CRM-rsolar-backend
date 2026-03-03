@@ -139,18 +139,19 @@ const handleWebhook = async (req, res) => {
 
             // Download recording with retry logic
             try {
-                console.log(`[Webhook] Attempting to download recording from webhook URL...`);
+                console.log(`[Webhook] Attempting to download recording from webhook URL: ${payload.recording_url}`);
                 filePath = await callRecordingService.downloadRecording(payload.recording_url);
             } catch (downloadErr) {
-                console.warn(`[Webhook] Webhook URL failed for ${payload.call_id}. Attempting fallback to fetch fresh URL from API...`);
+                console.warn(`[Webhook] Webhook URL persistently failed (404) for ${payload.call_id}. Checking Smartflo API for a fresh link...`);
 
                 // Fallback: Fetch fresh URL from API
                 try {
                     const freshUrl = await callRecordingService.getRecordingUrl(payload.call_id);
                     if (freshUrl && freshUrl !== payload.recording_url) {
-                        console.log(`[Webhook] Found different URL via API: ${freshUrl}`);
+                        console.log(`[Webhook] API provided a DIFFERENT URL than the webhook: ${freshUrl}`);
                         filePath = await callRecordingService.downloadRecording(freshUrl);
                     } else {
+                        console.warn(`[Webhook] API returned the same URL or no URL. No other options remaining.`);
                         throw new Error('Fresh URL is the same or not found');
                     }
                 } catch (fallbackErr) {
@@ -158,7 +159,7 @@ const handleWebhook = async (req, res) => {
                     throw downloadErr; // Throw original error if fallback also fails
                 }
             }
-            console.log(`[Webhook] Final Downloaded Path: ${filePath}`);
+            console.log(`[Webhook] Download successful! Path: ${filePath}`);
 
             // Process with Gemini
             console.log(`[Webhook] Analyzing audio with Gemini...`);

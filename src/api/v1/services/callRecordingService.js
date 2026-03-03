@@ -66,17 +66,19 @@ const getRecordingUrl = async (callId) => {
 /**
  * Downloads the recording file with retry logic for 404 errors.
  * @param {string} url 
- * @param {number} retries Number of retries (default 3)
- * @param {number} delay Delay between retries in ms (default 5000)
+ * @param {number} retries Number of retries (default 6)
+ * @param {number} delay Delay between retries in ms (default 8000)
  * @returns {Promise<string>} local file path
  */
-const downloadRecording = async (url, retries = 3, delay = 5000) => {
+const downloadRecording = async (url, retries = 6, delay = 8000) => {
     let lastError;
+
+    console.log(`[Download] Starting download from: ${url}`);
 
     for (let i = 0; i <= retries; i++) {
         try {
             if (i > 0) {
-                console.log(`[Download] Retry attempt ${i}/${retries} after ${delay}ms...`);
+                console.log(`[Download] Attempt ${i + 1}/${retries + 1}: Waiting ${delay}ms before retry...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
 
