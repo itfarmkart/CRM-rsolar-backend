@@ -31,6 +31,13 @@ router.post('/process-gemini', callRecordingController.processRecordingGemini);
 router.post('/webhook', callRecordingController.handleWebhook);
 
 /**
+ * @route GET /api/v1/call-recordings/process-pending
+ * @desc Process pending call recordings
+ * @access Public (Add auth middleware if needed later)
+ */
+router.get('/process-pending', callRecordingController.processPending);
+
+/**
  * @route GET /api/v1/call-recordings/test
  * @desc Test routing to call-recordings
  * @access Public

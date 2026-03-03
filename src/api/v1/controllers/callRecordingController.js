@@ -124,64 +124,101 @@ const processRecordingGemini = async (req, res) => {
     }
 };
 
-const handleWebhook = async (req, res) => {
-    let filePath;
+const processPending = async (req, res) => {
     try {
-        const payload = req.body;
-        const timestamp = new Date().toISOString();
+        console.log(`[Queue] Starting process-pending task...`);
 
-        console.log(`[Webhook] Incoming call_id: ${payload.call_id || 'unidentified'}`);
-        console.log(`[Webhook] Full Payload:`, JSON.stringify(payload));
+        // 1. Fetch pending records (limit to small batch to avoid timeouts)
+        const pendingCalls = await db('call_recordings')
+            .where('processing_status', 'pending')
+            .limit(5);
 
-        // 1. Process only if it's an answered call with a recording
-        if (payload.call_status === 'answered' && payload.recording_url) {
-            console.log(`[Webhook] Condition met. Starting processing for: ${payload.call_id}`);
+        if (pendingCalls.length === 0) {
+            console.log(`[Queue] No pending calls found.`);
+            return res.status(200).json({ status: 'success', message: 'No pending calls' });
+        }
 
-            // Download recording with Aggressive Polling (Catch it faster)
-            let downloadUrl = payload.recording_url;
+        console.log(`[Queue] Found ${pendingCalls.length} pending calls to process.`);
+
+        for (const call of pendingCalls) {
+            let filePath;
             try {
-                console.log(`[Webhook] Starting aggressive download for ${payload.call_id}...`);
-                // Poll every 3 seconds for up to 15 attempts (~45 seconds total)
-                // Checking more frequently catches the file the moment it's available
-                filePath = await callRecordingService.downloadRecording(downloadUrl, 15, 3000);
-            } catch (downloadErr) {
-                console.warn(`[Webhook] Initial URL failed after aggressive polling. Checking API...`);
+                // Mark as processing
+                await db('call_recordings')
+                    .where('id', call.id)
+                    .update({ processing_status: 'processing', last_processed_at: new Date() });
 
-                try {
-                    const freshUrl = await callRecordingService.getRecordingUrl(payload.call_id);
-                    if (freshUrl && freshUrl !== downloadUrl) {
-                        console.log(`[Webhook] API found a DIFFERENT URL. Retrying once...`);
-                        filePath = await callRecordingService.downloadRecording(freshUrl, 2, 3000);
-                    } else {
-                        throw downloadErr;
-                    }
-                } catch (fallbackErr) {
-                    console.error(`[Webhook] All attempts failed.`);
-                    throw downloadErr;
+                console.log(`[Queue] Processing call_id: ${call.call_id}`);
+
+                // 2. Download Recording (use aggressive polling)
+                filePath = await callRecordingService.downloadRecording(call.recording_url, 15, 3000);
+
+                // 3. Analyze with Gemini
+                console.log(`[Queue] Analyzing audio for ${call.call_id}...`);
+                const analysis = await callRecordingService.processAudioWithGemini(filePath);
+
+                // 4. Update Database
+                await db('call_recordings')
+                    .where('id', call.id)
+                    .update({
+                        call_category: analysis.call_category,
+                        problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
+                            ? analysis.call_summary.problem_inquiry.join('\n')
+                            : JSON.stringify(analysis.call_summary?.problem_inquiry),
+                        solution_response: Array.isArray(analysis.call_summary?.solution_response)
+                            ? analysis.call_summary.solution_response.join('\n')
+                            : JSON.stringify(analysis.call_summary?.solution_response),
+                        transcription: analysis.transcription,
+                        processing_status: 'completed'
+                    });
+
+                console.log(`[Queue] Successfully processed call_id: ${call.call_id}`);
+
+            } catch (error) {
+                console.error(`[Queue Error] Failed to process ${call.call_id}:`, error.message);
+
+                await db('call_recordings')
+                    .where('id', call.id)
+                    .update({
+                        processing_status: 'failed',
+                        error_log: error.message
+                    });
+            } finally {
+                // Clean up
+                if (filePath && fs.existsSync(filePath)) {
+                    try { fs.unlinkSync(filePath); } catch (e) { }
                 }
             }
-            console.log(`[Webhook] Download successful! Path: ${filePath}`);
+        }
 
-            // Process with Gemini
-            console.log(`[Webhook] Analyzing audio with Gemini...`);
-            const analysis = await callRecordingService.processAudioWithGemini(filePath);
-            console.log(`[Webhook] Analysis complete. Category: ${analysis.call_category}`);
+        return res.status(200).json({
+            status: 'success',
+            message: `Processed ${pendingCalls.length} calls`
+        });
 
-            // 2. Insert into Database
-            console.log(`[Webhook] Attempting DB insertion...`);
+    } catch (error) {
+        console.error('[Queue Error] Critical failure:', error.message);
+        return res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+const handleWebhook = async (req, res) => {
+    try {
+        const payload = req.body;
+
+        console.log(`[Webhook] Incoming call_id: ${payload.call_id || 'unidentified'}`);
+        console.log(`[Webhook] Raw Payload:`, JSON.stringify(payload));
+
+        // 1. Validate if it's an answered call with a recording URL
+        if (payload.call_status === 'answered' && payload.recording_url) {
+            console.log(`[Webhook] Answered call detected. Enqueueing: ${payload.call_id}`);
+
+            // 2. Insert into Database with 'pending' status
             const dbPayload = {
                 call_id: payload.call_id,
                 customer_mobile_number: payload.caller_id_number,
                 recording_url: payload.recording_url,
-                call_category: analysis.call_category,
-                call_status: analysis.call_status,
-                problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
-                    ? analysis.call_summary.problem_inquiry.join('\n')
-                    : JSON.stringify(analysis.call_summary?.problem_inquiry),
-                solution_response: Array.isArray(analysis.call_summary?.solution_response)
-                    ? analysis.call_summary.solution_response.join('\n')
-                    : JSON.stringify(analysis.call_summary?.solution_response),
-                transcription: analysis.transcription,
+                call_status: payload.call_status,
                 start_stamp: payload.start_stamp,
                 end_stamp: payload.end_stamp,
                 agent_name: payload.answered_agent_name,
@@ -189,42 +226,36 @@ const handleWebhook = async (req, res) => {
                 did_number: payload.call_to_number,
                 duration: payload.duration,
                 direction: payload.direction,
-                raw_payload: JSON.stringify(payload)
+                raw_payload: JSON.stringify(payload),
+                processing_status: 'pending' // New status column
             };
 
-            await db('call_recordings').insert(dbPayload);
-            console.log(`[Webhook] Successfully stored in DB: ${payload.call_id}`);
+            // Use .insert().onConflict('call_id').merge() to handle potential duplicates from Smartflo retries
+            await db('call_recordings')
+                .insert(dbPayload)
+                .onConflict('call_id')
+                .merge();
 
-            res.status(200).json({
+            console.log(`[Webhook] Successfully enqueued: ${payload.call_id}`);
+
+            return res.status(200).json({
                 status: 'success',
-                message: 'Webhook processed and stored successfully',
+                message: 'Webhook received and enqueued for background processing',
                 call_id: payload.call_id
             });
         } else {
-            console.log(`[Webhook] Skipping: status=${payload.call_status}, has_url=${!!payload.recording_url}`);
-            res.status(200).json({
+            console.log(`[Webhook] Skipping non-answered or missing URL: ${payload.call_status}`);
+            return res.status(200).json({
                 status: 'skipped',
-                message: 'Recording not available or call not answered'
+                message: 'Call not answered or recording URL missing'
             });
         }
     } catch (error) {
         console.error('[Webhook Error] Exception:', error.message);
-        console.error('[Webhook Error] Stack:', error.stack);
-
-        res.status(500).json({
+        return res.status(500).json({
             status: 'error',
-            message: error.message || 'Internal server error while processing webhook'
+            message: 'Internal server error while enqueuing webhook'
         });
-    } finally {
-        // Clean up temporary files
-        if (filePath && fs.existsSync(filePath)) {
-            try {
-                fs.unlinkSync(filePath);
-                console.log(`[Webhook] Cleaned up temporary file: ${filePath}`);
-            } catch (cleanupErr) {
-                console.error(`[Webhook] Cleanup failed for ${filePath}:`, cleanupErr.message);
-            }
-        }
     }
 };
 
@@ -232,5 +263,6 @@ module.exports = {
     processRecording,
     listRecordings,
     processRecordingGemini,
-    handleWebhook
+    handleWebhook,
+    processPending
 };
