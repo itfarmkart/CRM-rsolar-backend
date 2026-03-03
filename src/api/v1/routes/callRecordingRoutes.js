@@ -38,6 +38,13 @@ router.post('/webhook', callRecordingController.handleWebhook);
 router.get('/process-pending', callRecordingController.processPending);
 
 /**
+ * @route GET /api/v1/call-recordings/mobile/:mobile_number
+ * @desc Get all call recordings for a specific mobile number
+ * @access Public
+ */
+router.get('/mobile/:mobile_number', callRecordingController.getRecordingsByMobile);
+
+/**
  * @route GET /api/v1/call-recordings/test
  * @desc Test routing to call-recordings
  * @access Public

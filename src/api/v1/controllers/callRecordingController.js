@@ -260,10 +260,39 @@ const handleWebhook = async (req, res) => {
     }
 };
 
+const getRecordingsByMobile = async (req, res) => {
+    try {
+        const { mobile_number } = req.params;
+
+        if (!mobile_number) {
+            return res.status(400).json({ status: 'error', message: 'Mobile number is required' });
+        }
+
+        console.log(`[API] Fetching recordings for mobile: ${mobile_number}`);
+
+        const recordings = await db('call_recordings')
+            .where('customer_mobile_number', 'like', `%${mobile_number}%`)
+            .orderBy('start_stamp', 'desc');
+
+        return res.status(200).json({
+            status: 'success',
+            count: recordings.length,
+            data: recordings
+        });
+    } catch (error) {
+        console.error('[API Error] getRecordingsByMobile:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error while fetching recordings'
+        });
+    }
+};
+
 module.exports = {
     processRecording,
     listRecordings,
     processRecordingGemini,
     handleWebhook,
-    processPending
+    processPending,
+    getRecordingsByMobile
 };
