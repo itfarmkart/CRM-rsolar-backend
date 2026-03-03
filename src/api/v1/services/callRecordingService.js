@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
+const os = require('os');
 require('dotenv').config();
 
 const CLOUDPHONE_API_TOKEN = process.env.CLOUDPHONE_API_TOKEN;
@@ -68,14 +69,9 @@ const getRecordingUrl = async (callId) => {
  * @returns {Promise<string>} local file path
  */
 const downloadRecording = async (url) => {
-    const fileName = `recording_${Date.now()}.mp3`;
-    const filePath = path.join(__dirname, '../../../../tmp', fileName);
-
-    // Ensure tmp directory exists (simple check for this environment)
-    const tmpDir = path.join(__dirname, '../../../../tmp');
-    if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-    }
+    const extension = path.extname(url.split('?')[0]); // Get extension from URL, ignoring query params
+    const fileName = `recording_${Date.now()}${extension}`;
+    const filePath = path.join(os.tmpdir(), fileName);
 
     const writer = fs.createWriteStream(filePath);
 
