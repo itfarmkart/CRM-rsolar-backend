@@ -169,7 +169,8 @@ const processPending = async (req, res) => {
                             ? analysis.call_summary.solution_response.join('\n')
                             : JSON.stringify(analysis.call_summary?.solution_response),
                         transcription: analysis.transcription,
-                        processing_status: 'completed'
+                        processing_status: 'completed',
+                        call_status: analysis.call_status
                     });
 
                 console.log(`[Queue] Successfully processed call_id: ${call.call_id}`);
