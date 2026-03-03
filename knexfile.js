@@ -13,9 +13,9 @@ module.exports = {
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
             timezone: process.env.DB_TIMEZONE || 'Asia/Kolkata',
-            ssl: {
+            ssl: process.env.DB_SSL === 'true' ? {
                 rejectUnauthorized: false
-            }
+            } : false
         },
         migrations: {
             directory: './src/database/migrations'
@@ -34,9 +34,9 @@ module.exports = {
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
             timezone: process.env.DB_TIMEZONE || 'Asia/Kolkata',
-            ssl: {
+            ssl: process.env.DB_SSL === 'true' ? {
                 rejectUnauthorized: false
-            },
+            } : false,
             connectTimeout: 60000, // 60 seconds
             acquireConnectionTimeout: 60000
         },

@@ -18,4 +18,7 @@ router.use('/allowed-emails', require('./allowedEmailsRoutes'));
 // O&M Platform
 router.use('/om-platform', require('./omPlatformRoutes'));
 
+// Call Recordings
+router.use('/call-recordings', require('./callRecordingRoutes'));
+
 module.exports = router;
