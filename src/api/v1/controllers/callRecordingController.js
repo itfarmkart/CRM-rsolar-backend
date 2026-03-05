@@ -235,7 +235,7 @@ const handleWebhook = async (req, res) => {
                 did_number: payload.call_to_number,
                 duration: payload.duration,
                 direction: payload.direction,
-                raw_payload: JSON.stringify(payload),
+                // raw_payload: JSON.stringify(payload),
                 processing_status: 'pending', // New status column
                 customerExist: customerExist // Flag for existing customer
             };
