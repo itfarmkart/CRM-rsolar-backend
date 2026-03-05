@@ -214,6 +214,14 @@ const handleWebhook = async (req, res) => {
         if (payload.call_status === 'answered' && payload.recording_url) {
             console.log(`[Webhook] Answered call detected. Enqueueing: ${payload.call_id}`);
 
+            // 1.5 Check if customer exists in customerDetails table
+            const customer = await db('customerDetails')
+                .where('mobileNumber', 'like', `%${payload.caller_id_number}%`)
+                .first();
+
+            const customerExist = customer ? 1 : 0;
+            console.log(`[Webhook] Customer existence check for ${payload.caller_id_number}: ${customerExist}`);
+
             // 2. Insert into Database with 'pending' status
             const dbPayload = {
                 call_id: payload.call_id,
@@ -228,7 +236,8 @@ const handleWebhook = async (req, res) => {
                 duration: payload.duration,
                 direction: payload.direction,
                 raw_payload: JSON.stringify(payload),
-                processing_status: 'pending' // New status column
+                processing_status: 'pending', // New status column
+                customerExist: customerExist // Flag for existing customer
             };
 
             // Use .insert().onConflict('call_id').merge() to handle potential duplicates from Smartflo retries
@@ -237,12 +246,13 @@ const handleWebhook = async (req, res) => {
                 .onConflict('call_id')
                 .merge();
 
-            console.log(`[Webhook] Successfully enqueued: ${payload.call_id}`);
+            console.log(`[Webhook] Successfully enqueued: ${payload.call_id} (Customer Exist: ${customerExist})`);
 
             return res.status(200).json({
                 status: 'success',
                 message: 'Webhook received and enqueued for background processing',
-                call_id: payload.call_id
+                call_id: payload.call_id,
+                customerExist
             });
         } else {
             console.log(`[Webhook] Skipping non-answered or missing URL: ${payload.call_status}`);
