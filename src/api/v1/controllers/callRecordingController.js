@@ -205,28 +205,53 @@ const processPending = async (req, res) => {
 
 const handleWebhook = async (req, res) => {
     try {
-        const payload = req.body;
+        // 1. LOG IMMEDIATELY (For Vercel Connectivity Debugging)
+        console.log(`[Webhook] HIT RECEIVED | Method: ${req.method} | Original-URL: ${req.url}`);
 
-        console.log(`[Webhook] Incoming call_id: ${payload.call_id || 'unidentified'}`);
-        console.log(`[Webhook] Raw Payload:`, JSON.stringify(payload));
+        // Combine body and query to support both POST and GET verification hits
+        const payload = req.method === 'POST' ? req.body : req.query;
 
-        // 1. Validate if it's an answered call with a recording URL
-        if (payload.call_status === 'answered' && payload.recording_url) {
-            console.log(`[Webhook] Answered call detected. Enqueueing: ${payload.call_id}`);
+        if (!payload || Object.keys(payload).length === 0) {
+            console.warn(`[Webhook] Empty payload or GET heartbeat detected. Payload:`, JSON.stringify(payload));
+            return res.status(200).json({ status: 'ignored', message: 'Heartbeat or empty payload' });
+        }
 
-            // 1.5 Check if customer exists in customerDetails table
-            const customer = await db('customerDetails')
-                .where('mobileNumber', 'like', `%${payload.caller_id_number}%`)
-                .first();
+        console.log(`[Webhook] Payload Data:`, JSON.stringify(payload));
 
-            const customerExist = customer ? 1 : 0;
-            console.log(`[Webhook] Customer existence check for ${payload.caller_id_number}: ${customerExist}`);
+        // 2. DIRECTION-AWARE NUMBER EXTRACTION
+        // Inbound: caller_id_number is the customer
+        // Outbound: call_to_number is the customer
+        const direction = (payload.direction || 'inbound').toLowerCase();
+        const customerMobile = direction === 'inbound'
+            ? payload.caller_id_number
+            : payload.call_to_number;
 
-            // 2. Insert into Database with 'pending' status
+        console.log(`[Webhook] Processing ${direction} call. Customer Mobile: ${customerMobile} | Call ID: ${payload.call_id}`);
+
+        // 3. FAST-SKIP FOR NON-ANSWERED
+        if (payload.call_status !== 'answered') {
+            console.log(`[Webhook] Skipping call_id ${payload.call_id} because status is: ${payload.call_status}`);
+            return res.status(200).json({ status: 'skipped', message: `Call status is ${payload.call_status}` });
+        }
+
+        // 4. DATABASE UPDATES (Run in try-catch to ensure we still respond to Smartflo)
+        try {
+            // Check customer existence
+            let customerExist = 0;
+            if (customerMobile) {
+                const customer = await db('customerDetails')
+                    .where('mobileNumber', 'like', `%${customerMobile}%`)
+                    .first();
+                customerExist = customer ? 1 : 0;
+            }
+
+            // Determine processing status (wait for URL if not present)
+            const processingStatus = payload.recording_url ? 'pending' : 'waiting_for_url';
+
             const dbPayload = {
                 call_id: payload.call_id,
-                customer_mobile_number: payload.caller_id_number,
-                recording_url: payload.recording_url,
+                customer_mobile_number: customerMobile,
+                recording_url: payload.recording_url || null,
                 call_status: payload.call_status,
                 start_stamp: payload.start_stamp,
                 end_stamp: payload.end_stamp,
@@ -234,39 +259,35 @@ const handleWebhook = async (req, res) => {
                 agent_number: payload.answered_agent_number,
                 did_number: payload.call_to_number,
                 duration: payload.duration,
-                direction: payload.direction,
-                // raw_payload: JSON.stringify(payload),
-                processing_status: 'pending', // New status column
-                customerExist: customerExist // Flag for existing customer
+                direction: direction,
+                // raw_payload: JSON.stringify(payload), // Commented out per user's previous preference
+                processing_status: processingStatus,
+                customerExist: customerExist
             };
 
-            // Use .insert().onConflict('call_id').merge() to handle potential duplicates from Smartflo retries
             await db('call_recordings')
                 .insert(dbPayload)
                 .onConflict('call_id')
                 .merge();
 
-            console.log(`[Webhook] Successfully enqueued: ${payload.call_id} (Customer Exist: ${customerExist})`);
+            console.log(`[Webhook] DB Success for ${payload.call_id} | Status: ${processingStatus}`);
 
-            return res.status(200).json({
-                status: 'success',
-                message: 'Webhook received and enqueued for background processing',
-                call_id: payload.call_id,
-                customerExist
-            });
-        } else {
-            console.log(`[Webhook] Skipping non-answered or missing URL: ${payload.call_status}`);
-            return res.status(200).json({
-                status: 'skipped',
-                message: 'Call not answered or recording URL missing'
-            });
+        } catch (dbError) {
+            console.error(`[Webhook] Database operation failed for ${payload.call_id}:`, dbError.message);
+            // We still proceed to return 200 to the provider
         }
-    } catch (error) {
-        console.error('[Webhook Error] Exception:', error.message);
-        return res.status(500).json({
-            status: 'error',
-            message: 'Internal server error while enqueuing webhook'
+
+        // 5. IMMEDIATE SUCCESS RESPONSE
+        return res.status(200).json({
+            status: 'success',
+            message: 'Webhook processed',
+            call_id: payload.call_id
         });
+
+    } catch (error) {
+        console.error('[Webhook] Critical Error:', error.message);
+        // Always return 200 OK to prevent Smartflo retries flooding the server
+        return res.status(200).json({ status: 'error', message: 'Internal error logged' });
     }
 };
 
