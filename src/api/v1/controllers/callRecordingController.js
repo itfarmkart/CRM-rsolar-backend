@@ -320,11 +320,133 @@ const getRecordingsByMobile = async (req, res) => {
     }
 };
 
+const syncHistory = async (req, res) => {
+    try {
+        const { limit = 50, page = 1, hours = 3000, from_date, to_date } = req.query;
+
+        let finalFromDate = from_date;
+        let finalToDate = to_date;
+
+        const formatSmartfloDate = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
+
+        // If from_date or to_date are not provided, calculate them based on 'hours'
+        if (!finalFromDate || !finalToDate) {
+            console.log(`[Sync] Custom dates not fully provided. Calculating based on last ${hours} hours...`);
+            const now = new Date();
+            const startDate = new Date(Date.now() - (parseInt(hours) * 60 * 60 * 1000));
+
+            finalFromDate = finalFromDate || formatSmartfloDate(startDate);
+            finalToDate = finalToDate || formatSmartfloDate(now);
+        }
+
+        console.log(`[Sync] Syncing from ${finalFromDate} to ${finalToDate} (Limit: ${limit}, Page: ${page})`);
+
+        const queryParams = {
+            limit: parseInt(limit),
+            page: parseInt(page),
+            from_date: finalFromDate,
+            to_date: finalToDate
+        };
+
+        const response = await callRecordingService.getAllRecordings(queryParams);
+        const externalRecordings = response.results || [];
+
+        if (externalRecordings.length === 0) {
+            return res.status(200).json({ status: 'success', message: 'No recordings found in the specified range', count: 0 });
+        }
+
+        let syncedCount = 0;
+        let skippedCount = 0;
+
+        const allowedDidNumbers = [
+            '+918069138224',
+            '+918069138220',
+            '+918069138222',
+            '+918069138221',
+            '+918069138223'
+        ];
+
+        for (const record of externalRecordings) {
+            // 1. Skip if not answered or no recording URL
+            if (record.status !== 'answered' || !record.recording_url) {
+                console.log('skippedCount status and url', skippedCount, record.status, record.recording_url)
+                skippedCount++;
+                continue;
+            }
+
+            // 1.1 Skip if DID number is not in the allowed list
+            if (!allowedDidNumbers.includes(record.did_number)) {
+                console.log('skippedCount did_number not allowed', record.did_number);
+                skippedCount++;
+                continue;
+            }
+
+            // 2. Check if already exists
+            const existing = await db('call_recordings').where('call_id', record.call_id).first();
+            if (existing) {
+                console.log('skippedCount call_id', skippedCount)
+
+                skippedCount++;
+                continue;
+            }
+
+            // 3. Direction-aware extraction
+            const direction = (record.direction || 'inbound').toLowerCase();
+            const customerMobile = record.caller_id_num
+                ? record.caller_id_num
+                : record.call_to_number;
+
+            // 4. Customer existence check
+            let customerExist = 0;
+            if (customerMobile) {
+                const customer = await db('customerDetails')
+                    .where('mobileNumber', 'like', `%${customerMobile}%`)
+                    .first();
+                customerExist = customer ? 1 : 0;
+            }
+            console.log('records', record);
+            // 5. Insert into DB
+            await db('call_recordings').insert({
+                call_id: record.call_id,
+                customer_mobile_number: customerMobile,
+                recording_url: record.recording_url,
+                call_status: record.status,
+                start_stamp: `${record.date} ${record.time}`, // combine date and time with a space
+                end_stamp: record.end_stamp,
+                agent_name: record.agent_name,
+                agent_number: record.agent_number,
+                did_number: record.did_number,
+                duration: record.call_duration,
+                direction: direction,
+                processing_status: 'pending',
+                customerExist: customerExist
+            });
+
+            syncedCount++;
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: `Sync completed: ${syncedCount} new records added, ${skippedCount} skipped.`,
+            meta: {
+                total_from_api: externalRecordings.length,
+                synced: syncedCount,
+                skipped: skippedCount
+            }
+        });
+
+    } catch (error) {
+        console.error('[Sync Error] syncHistory:', error.message);
+        return res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 module.exports = {
     processRecording,
     listRecordings,
     processRecordingGemini,
     handleWebhook,
     processPending,
-    getRecordingsByMobile
+    getRecordingsByMobile,
+    syncHistory
 };

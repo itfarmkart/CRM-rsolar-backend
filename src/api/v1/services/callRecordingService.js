@@ -27,7 +27,7 @@ const getAllRecordings = async (queryParams = {}) => {
             },
             headers: { 'Authorization': `Bearer ${CLOUDPHONE_API_TOKEN}` }
         });
-        console.log('response', response.data);
+        // console.log('response', response.data);
 
         if (response && response.data) {
             return response.data;

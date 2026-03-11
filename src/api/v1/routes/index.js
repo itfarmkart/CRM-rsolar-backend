@@ -21,4 +21,7 @@ router.use('/om-platform', require('./omPlatformRoutes'));
 // Call Recordings
 router.use('/call-recordings', require('./callRecordingRoutes'));
 
+// Employees & Permissions
+router.use('/employees', require('./employeeRoutes'));
+
 module.exports = router;
