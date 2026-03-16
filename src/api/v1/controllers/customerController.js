@@ -20,8 +20,6 @@ exports.getCustomers = async (req, res) => {
 
         let query = db('customerDetails as c')
             .leftJoin('customerAgreementDetails as ca', 'c.customerId', 'ca.customer_id')
-            // .leftJoin('call_recordings as cr', 'c.mobileNumber', 'cr.customer_mobile_number')
-            // .leftJoin('tickets as t', 'c.customerId', 't.customerId')
             .select(
                 'c.*',
                 'ca.agreementSignatureDate',
@@ -49,15 +47,34 @@ exports.getCustomers = async (req, res) => {
         }
 
         if (category) {
-            // if (category === 'call') {
-            //     query = query.whereNotNull('cr.call_id');
-            // }
-            // if (category === 'ticket') {
-            //     query = query.whereNotNull('t.assignmentPerson');
-            // }
-            // if(category === 'om'){
-            //     query = query.whereNull('cr.call_id');
-            // }
+            if (category === 'call') {
+                query = query.where(function () {
+                    this.whereExists(function () {
+                        this.select(db.raw(1))
+                            .from('call_recordings as cr')
+                            .whereRaw('cr.customer_mobile_number = c.mobileNumber');
+                    }).orWhereExists(function () {
+                        this.select(db.raw(1))
+                            .from('call_recordings as cr')
+                            .whereRaw("cr.customer_mobile_number = CONCAT('91', c.mobileNumber)");
+                    }).orWhereExists(function () {
+                        this.select(db.raw(1))
+                            .from('call_recordings as cr')
+                            .whereRaw("cr.customer_mobile_number = CONCAT('+91', c.mobileNumber)");
+                    });
+                });
+            }
+            if (category === 'ticket') {
+                query = query.whereExists(function () {
+                    this.select(db.raw(1))
+                        .from('complaints as t')
+                        .whereRaw('t.customerId = c.customerId')
+                        .whereNotNull('t.assignmentPerson');
+                });
+            }
+            if (category === 'om') {
+                query = query.whereNotNull('c.solar_device_id');
+            }
 
             // query = query.where('c.category', category);
         }
