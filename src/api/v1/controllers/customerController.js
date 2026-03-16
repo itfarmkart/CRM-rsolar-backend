@@ -20,8 +20,8 @@ exports.getCustomers = async (req, res) => {
 
         let query = db('customerDetails as c')
             .leftJoin('customerAgreementDetails as ca', 'c.customerId', 'ca.customer_id')
-            .leftJoin('call_recordings as cr', 'c.mobileNumber', 'cr.customer_mobile_number')
-            .leftJoin('tickets as t', 'c.customerId', 't.customerId')
+            // .leftJoin('call_recordings as cr', 'c.mobileNumber', 'cr.customer_mobile_number')
+            // .leftJoin('tickets as t', 'c.customerId', 't.customerId')
             .select(
                 'c.*',
                 'ca.agreementSignatureDate',
@@ -49,12 +49,12 @@ exports.getCustomers = async (req, res) => {
         }
 
         if (category) {
-            if (category === 'call') {
-                query = query.whereNotNull('cr.call_id');
-            }
-            if (category === 'ticket') {
-                query = query.whereNotNull('t.assignmentPerson');
-            }
+            // if (category === 'call') {
+            //     query = query.whereNotNull('cr.call_id');
+            // }
+            // if (category === 'ticket') {
+            //     query = query.whereNotNull('t.assignmentPerson');
+            // }
             // if(category === 'om'){
             //     query = query.whereNull('cr.call_id');
             // }
