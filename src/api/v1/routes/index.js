@@ -24,4 +24,7 @@ router.use('/call-recordings', require('./callRecordingRoutes'));
 // Employees & Permissions
 router.use('/employees', require('./employeeRoutes'));
 
+// Sync
+router.use('/sync', require('./syncRoutes'));
+
 module.exports = router;
