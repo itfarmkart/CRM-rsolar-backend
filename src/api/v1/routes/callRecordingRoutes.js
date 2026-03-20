@@ -31,6 +31,13 @@ router.post('/process-gemini', callRecordingController.processRecordingGemini);
 router.post('/webhook', callRecordingController.handleWebhook);
 
 /**
+ * @route POST /api/v1/call-recordings/webhook-farmkart
+ * @desc Receive call events (webhooks) from Smartflo and log them to a file
+ * @access Public
+ */
+router.post('/webhook-farmkart', callRecordingController.handleWebhookFarmkart);
+
+/**
  * @route GET /api/v1/call-recordings/process-pending
  * @desc Process pending call recordings
  * @access Public (Add auth middleware if needed later)

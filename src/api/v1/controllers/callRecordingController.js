@@ -292,6 +292,94 @@ const handleWebhook = async (req, res) => {
     }
 };
 
+const handleWebhookFarmkart = async (req, res) => {
+    try {
+        // 1. LOG IMMEDIATELY (For Vercel Connectivity Debugging)
+        console.log(`[Webhook] HIT RECEIVED | Method: ${req.method} | Original-URL: ${req.url}`);
+
+        // Combine body and query to support both POST and GET verification hits
+        const payload = req.method === 'POST' ? req.body : req.query;
+
+        if (!payload || Object.keys(payload).length === 0) {
+            console.warn(`[Webhook] Empty payload or GET heartbeat detected. Payload:`, JSON.stringify(payload));
+            return res.status(200).json({ status: 'ignored', message: 'Heartbeat or empty payload' });
+        }
+
+        console.log(`[Webhook] Payload Data:`, JSON.stringify(payload));
+
+        // 2. DIRECTION-AWARE NUMBER EXTRACTION
+        // Inbound: caller_id_number is the customer
+        // Outbound: call_to_number is the customer
+        const direction = (payload.direction || 'inbound').toLowerCase();
+        const customerMobile = direction === 'inbound'
+            ? payload.caller_id_number
+            : payload.call_to_number;
+
+        console.log(`[Webhook] Processing ${direction} call. Customer Mobile: ${customerMobile} | Call ID: ${payload.call_id}`);
+
+        // 3. FAST-SKIP FOR NON-ANSWERED
+        if (payload.call_status !== 'answered') {
+            console.log(`[Webhook] Skipping call_id ${payload.call_id} because status is: ${payload.call_status}`);
+            return res.status(200).json({ status: 'skipped', message: `Call status is ${payload.call_status}` });
+        }
+
+        // 4. DATABASE UPDATES (Run in try-catch to ensure we still respond to Smartflo)
+        try {
+            // Check customer existence
+            let customerExist = 0;
+            if (customerMobile) {
+                const customer = await dbfarmkart('customers')
+                    .where('mobileNumber', 'like', `%${customerMobile}%`)
+                    .first();
+                customerExist = customer ? 1 : 0;
+            }
+
+            // Determine processing status (wait for URL if not present)
+            const processingStatus = payload.recording_url ? 'pending' : 'waiting_for_url';
+
+            const dbPayload = {
+                call_id: payload.call_id,
+                customer_mobile_number: customerMobile,
+                recording_url: payload.recording_url || null,
+                call_status: payload.call_status,
+                start_stamp: payload.start_stamp,
+                end_stamp: payload.end_stamp,
+                agent_name: payload.answered_agent_name,
+                agent_number: payload.answered_agent_number,
+                did_number: payload.call_to_number,
+                duration: payload.duration,
+                direction: direction,
+                // raw_payload: JSON.stringify(payload), // Commented out per user's previous preference
+                processing_status: processingStatus,
+                customerExist: customerExist
+            };
+
+            await dbfarmkart('call_recordings')
+                .insert(dbPayload)
+                .onConflict('call_id')
+                .merge();
+
+            console.log(`[Webhook] DB Success for ${payload.call_id} | Status: ${processingStatus}`);
+
+        } catch (dbError) {
+            console.error(`[Webhook] Database operation failed for ${payload.call_id}:`, dbError.message);
+            // We still proceed to return 200 to the provider
+        }
+
+        // 5. IMMEDIATE SUCCESS RESPONSE
+        return res.status(200).json({
+            status: 'success',
+            message: 'Webhook processed',
+            call_id: payload.call_id
+        });
+
+    } catch (error) {
+        console.error('[Webhook] Critical Error:', error.message);
+        // Always return 200 OK to prevent Smartflo retries flooding the server
+        return res.status(200).json({ status: 'error', message: 'Internal error logged' });
+    }
+};
+
 const getRecordingsByMobile = async (req, res) => {
     try {
         const { mobile_number } = req.params;
@@ -649,5 +737,6 @@ module.exports = {
     getRecordingsByMobile,
     syncHistory,
     syncHistoryFarmkart,
-    processPendingFarmkart
+    processPendingFarmkart,
+    handleWebhookFarmkart
 };
