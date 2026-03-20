@@ -1,0 +1,25 @@
+{
+  "customerDetails": [
+    "addedDate",
+    "address",
+    "customerId",
+    "customerName",
+    "district",
+    "emailId",
+    "inverterExpiryDate",
+    "invoiceDate",
+    "isZohoRegister",
+    "ivrsNumber",
+    "ivrsStatus",
+    "latitude",
+    "longitude",
+    "mobileNumber",
+    "panelExpiryDate",
+    "pincode",
+    "solar_device_id",
+    "solarPlantType",
+    "state",
+    "tehsil",
+    "village"
+  ]
+}

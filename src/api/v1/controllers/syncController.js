@@ -35,7 +35,7 @@ const syncMissionControlData = async (req, res) => {
     const trx = await db.transaction();
     try {
         for (const row of data) {
-            const mobileNo = row['Mobile No'] || row['mobile_no'] || row['register_mobile_number'];
+            const mobileNo = row['Mobile No'] || row['mobile_no'] || row['Register Mobile Number'] || row['register_mobile_number'];
             if (!mobileNo) continue; // Skip rows without mobile number (join key)
 
             // 1. Resolve customerId from 'customerDetails' table
@@ -96,78 +96,105 @@ const syncMissionControlData = async (req, res) => {
 };
 
 const onUpdateConvertBookingWebhook = async (req, res) => {
-    console.log("onUpdateConvertBookingWebhook", req.body);
-    // try {
-    //     const { data } = req.body;
-    //     if (!data || !Array.isArray(data)) {
-    //         return res.status(400).json({ status: 'error', message: "Invalid data format. Expected { data: [...] }" });
-    //     }
+    console.log("onUpdateConvertBookingWebhook received data:", JSON.stringify(req.body, null, 2));
+    try {
+        const { Data } = req.body;
+        if (!Data) {
+            return res.status(400).json({ status: 'error', message: "Invalid data format. Expected { Data: { ... } }" });
+        }
 
-    //     const trx = await db.transaction();
-    //     try {
-    //         for (const row of data) {
-    //             const mobileNo = row['Mobile No'] || row['mobile_no'] || row['register_mobile_number'];
-    //             if (!mobileNo) continue; // Skip rows without mobile number (join key)
+        const row = Data;
+        const mobileNo = row['Mobile No'] || row['mobile_no'] || row['Register Mobile Number'] || row['register_mobile_number'];
 
-    //             // 1. Resolve customerId from 'customerDetails' table
-    //             // We use 'like' with the last 10 digits to be flexible with country code variations
-    //             const cleanMobile = mobileNo.toString().replace(/\D/g, '');
-    //             const last10 = cleanMobile.slice(-10);
+        if (!mobileNo) {
+            console.warn("[Webhook] Skipping row: No mobile number found", row);
+            return res.status(400).json({ status: 'error', message: "Mobile number not found in Data" });
+        }
 
-    //             if (last10.length < 10) {
-    //                 console.warn(`[Sync] Skipping invalid mobile number: ${mobileNo}`);
-    //                 continue;
-    //             }
+        // 1. Resolve customerId from 'customerDetails' table
+        const cleanMobile = mobileNo.toString().replace(/\D/g, '');
+        const last10 = cleanMobile.slice(-10);
 
-    //             const customer = await trx('customerDetails')
-    //                 .select('customerId')
-    //                 .where('mobileNumber', 'like', `%${last10}%`)
-    //                 .first();
+        if (last10.length < 10) {
+            return res.status(400).json({ status: 'error', message: `Invalid mobile number: ${mobileNo}` });
+        }
 
-    //             if (!customer) {
-    //                 console.log(`[Sync] Mobile ${mobileNo} NOT found in customerDetails. Skipping.`);
-    //                 continue;
-    //             }
+        const customer = await db('customerDetails')
+            .select('customerId')
+            .where('mobileNumber', 'like', `%${last10}%`)
+            .first();
 
-    //             const customerId = customer.customerId;
+        if (!customer) {
+            console.log(`[Webhook] Mobile ${mobileNo} NOT found in customerDetails. Skipping.`);
+            return res.status(200).json({ status: 'skipped', message: `Customer with mobile ${mobileNo} not found in CRM` });
+        }
 
-    //             // 2. Distribute columns to all 12 tables
-    //             for (const tableName of Object.keys(TABLE_SCHEMAS)) {
-    //                 const allowedCols = TABLE_SCHEMAS[tableName];
-    //                 const insertData = { customerId, mobile_no: mobileNo };
-    //                 let hasData = false;
+        const customerId = customer.customerId;
 
-    //                 // Map row fields to table columns
-    //                 for (const sheetKey of Object.keys(row)) {
-    //                     const sqlCol = toSqlName(sheetKey);
-    //                     if (allowedCols.includes(sqlCol)) {
-    //                         insertData[sqlCol] = row[sheetKey];
-    //                         hasData = true;
-    //                     }
-    //                 }
+        const trx = await db.transaction();
+        try {
+            // 2. Update customerDetails with basic info if present
+            const customerDetailsUpdate = {};
+            if (row['Customer Name']) customerDetailsUpdate.customerName = row['Customer Name'];
+            if (row['District']) customerDetailsUpdate.district = row['District'];
+            if (row['Tehsil']) customerDetailsUpdate.tehsil = row['Tehsil'];
+            if (row['Village Name']) customerDetailsUpdate.village = row['Village Name'];
+            if (row['Address']) customerDetailsUpdate.address = row['Address'];
+            if (row['Email ID']) customerDetailsUpdate.emailId = row['Email ID'];
+            if (row['Solar Plant Type']) customerDetailsUpdate.solarPlantType = row['Solar Plant Type'];
+            if (row['Consumer Number (IVRS)']) customerDetailsUpdate.ivrsNumber = row['Consumer Number (IVRS)'];
 
-    //                 if (hasData) {
-    //                     // UPSERT logic using Knex
-    //                     // Note: mobile_no or customerId should have a UNIQUE index for onConflict to work correctly.
-    //                     await trx(tableName)
-    //                         .insert(insertData)
-    //                         .onConflict('mobile_no')
-    //                         .merge();
-    //                 }
-    //             }
-    //         }
+            // Parse latitude/longitude from "Customer's Address Location"
+            const location = row["Customer's Address Location"] || row["customers_address_location"];
+            if (location && location.includes(',')) {
+                const [lat, lng] = location.split(',').map(s => s.trim());
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    customerDetailsUpdate.latitude = lat;
+                    customerDetailsUpdate.longitude = lng;
+                }
+            }
 
-    //         await trx.commit();
-    //         res.status(200).json({ status: 'success', message: `Successfully synced ${data.length} rows.` });
-    //     } catch (error) {
-    //         await trx.rollback();
-    //         console.error("Sync Error:", error);
-    //         res.status(500).json({ status: 'error', message: "Sync Failed: " + error.message });
-    //     }
-    // } catch (error) {
-    //     console.error("Sync Error:", error);
-    //     res.status(500).json({ status: 'error', message: "Sync Failed: " + error.message });
-    // }
+            if (Object.keys(customerDetailsUpdate).length > 0) {
+                await trx('customerDetails')
+                    .where('customerId', customerId)
+                    .update(customerDetailsUpdate);
+                console.log(`[Webhook] Updated customerDetails for ${customerId}`);
+            }
+
+            // 3. Distribute columns to all mapped tables
+            for (const tableName of Object.keys(TABLE_SCHEMAS)) {
+                const allowedCols = TABLE_SCHEMAS[tableName];
+                const insertData = { customerId, mobile_no: mobileNo };
+                let hasData = false;
+
+                // Map row fields to table columns
+                for (const sheetKey of Object.keys(row)) {
+                    const sqlCol = toSqlName(sheetKey);
+                    if (allowedCols.includes(sqlCol)) {
+                        insertData[sqlCol] = row[sheetKey];
+                        hasData = true;
+                    }
+                }
+
+                if (hasData) {
+                    // UPSERT logic using Knex
+                    await trx(tableName)
+                        .insert(insertData)
+                        .onConflict('mobile_no')
+                        .merge();
+                }
+            }
+
+            await trx.commit();
+            res.status(200).json({ status: 'success', message: `Successfully synced data for customer ${customerId}` });
+        } catch (error) {
+            await trx.rollback();
+            throw error;
+        }
+    } catch (error) {
+        console.error("Webhook Sync Error:", error);
+        res.status(500).json({ status: 'error', message: "Webhook Sync Failed: " + error.message });
+    }
 }
 
 module.exports = {
