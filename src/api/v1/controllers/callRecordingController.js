@@ -2,6 +2,7 @@ const callRecordingService = require('../services/callRecordingService');
 const fs = require('fs');
 const path = require('path');
 const db = require('../../../database/db');
+const dbfarmkart = require('../../../database/dbfarmkart');
 
 const processRecording = async (req, res) => {
     const { call_id, recording_url } = req.body;
@@ -441,6 +442,204 @@ const syncHistory = async (req, res) => {
     }
 };
 
+const syncHistoryFarmkart = async (req, res) => {
+    try {
+        const { limit = 50, page = 1, hours = 3000, from_date, to_date } = req.query;
+
+        let finalFromDate = from_date;
+        let finalToDate = to_date;
+
+        const formatSmartfloDate = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
+
+        // If from_date or to_date are not provided, calculate them based on 'hours'
+        if (!finalFromDate || !finalToDate) {
+            console.log(`[Sync] Custom dates not fully provided. Calculating based on last ${hours} hours...`);
+            const now = new Date();
+            const startDate = new Date(Date.now() - (parseInt(hours) * 60 * 60 * 1000));
+
+            finalFromDate = finalFromDate || formatSmartfloDate(startDate);
+            finalToDate = finalToDate || formatSmartfloDate(now);
+        }
+
+        console.log(`[Sync] Syncing from ${finalFromDate} to ${finalToDate} (Limit: ${limit}, Page: ${page})`);
+
+        const queryParams = {
+            limit: parseInt(limit),
+            page: parseInt(page),
+            from_date: finalFromDate,
+            to_date: finalToDate
+        };
+
+        const response = await callRecordingService.getAllRecordings(queryParams);
+        const externalRecordings = response.results || [];
+        console.log('externalRecordings', externalRecordings);
+        if (externalRecordings.length === 0) {
+            return res.status(200).json({ status: 'success', message: 'No recordings found in the specified range', count: 0 });
+        }
+
+        let syncedCount = 0;
+        let skippedCount = 0;
+
+        const allowedDidNumbers = [
+            '+919109093238',
+            '+918962226165',
+            '+919981288238',
+        ];
+
+        for (const record of externalRecordings) {
+            // 1. Skip if not answered or no recording URL
+            if (record.status !== 'answered' || !record.recording_url) {
+                console.log('skippedCount status and url', skippedCount, record.status, record.recording_url)
+                skippedCount++;
+                continue;
+            }
+
+            // 1.1 Skip if DID number is not in the allowed list
+            if (!allowedDidNumbers.includes(record.agent_number)) {
+                console.log('skippedCount did_number not allowed', record.agent_number);
+                skippedCount++;
+                continue;
+            }
+
+            // 2. Check if already exists
+            const existing = await dbfarmkart('call_recordings').where('call_id', record.call_id).first();
+            if (existing) {
+                console.log('skippedCount call_id', skippedCount)
+
+                skippedCount++;
+                continue;
+            }
+
+            // 3. Direction-aware extraction
+            const direction = (record.direction || 'inbound').toLowerCase();
+            const customerMobile = record.caller_id_num
+                ? record.caller_id_num
+                : record.call_to_number;
+
+            // 4. Customer existence check
+            let customerExist = 0;
+            if (customerMobile) {
+                const customer = await dbfarmkart('customer')
+                    .where('mobileno', 'like', `%${customerMobile}%`)
+                    .first();
+                customerExist = customer ? 1 : 0;
+            }
+            console.log('records', record);
+            // 5. Insert into DB
+            await dbfarmkart('call_recordings').insert({
+                call_id: record.call_id,
+                customer_mobile_number: customerMobile,
+                recording_url: record.recording_url,
+                call_status: record.status,
+                start_stamp: `${record.date} ${record.time}`, // combine date and time with a space
+                end_stamp: record.end_stamp,
+                agent_name: record.agent_name,
+                agent_number: record.agent_number,
+                did_number: record.did_number,
+                duration: record.call_duration,
+                direction: direction,
+                processing_status: 'pending',
+                customerExist: customerExist
+            });
+
+            syncedCount++;
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: `Sync completed: ${syncedCount} new records added, ${skippedCount} skipped.`,
+            meta: {
+                total_from_api: externalRecordings.length,
+                synced: syncedCount,
+                skipped: skippedCount
+            }
+        });
+
+    } catch (error) {
+        console.error('[Sync Error] syncHistory:', error.message);
+        return res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+const processPendingFarmkart = async (req, res) => {
+    try {
+        console.log(`[Queue] Starting process-pending task...`);
+
+        // 1. Fetch pending records (limit to small batch to avoid timeouts)
+        const pendingCalls = await dbfarmkart('call_recordings')
+            .where('processing_status', 'pending')
+            .limit(5);
+
+        if (pendingCalls.length === 0) {
+            console.log(`[Queue] No pending calls found.`);
+            return res.status(200).json({ status: 'success', message: 'No pending calls' });
+        }
+
+        console.log(`[Queue] Found ${pendingCalls.length} pending calls to process.`);
+
+        for (const call of pendingCalls) {
+            let filePath;
+            try {
+                // Mark as processing
+                await dbfarmkart('call_recordings')
+                    .where('id', call.id)
+                    .update({ processing_status: 'processing', last_processed_at: new Date() });
+
+                console.log(`[Queue] Processing call_id: ${call.call_id}`);
+
+                // 2. Download Recording (use aggressive polling)
+                filePath = await callRecordingService.downloadRecording(call.recording_url, 15, 3000);
+
+                // 3. Analyze with Gemini
+                console.log(`[Queue] Analyzing audio for ${call.call_id}...`);
+                const analysis = await callRecordingService.processAudioWithGemini(filePath);
+
+                // 4. Update Database
+                await dbfarmkart('call_recordings')
+                    .where('id', call.id)
+                    .update({
+                        call_category: analysis.call_category,
+                        problem_inquiry: Array.isArray(analysis.call_summary?.problem_inquiry)
+                            ? analysis.call_summary.problem_inquiry.join('\n')
+                            : JSON.stringify(analysis.call_summary?.problem_inquiry),
+                        solution_response: Array.isArray(analysis.call_summary?.solution_response)
+                            ? analysis.call_summary.solution_response.join('\n')
+                            : JSON.stringify(analysis.call_summary?.solution_response),
+                        transcription: analysis.transcription,
+                        processing_status: 'completed',
+                        call_status: analysis.call_status
+                    });
+
+                console.log(`[Queue] Successfully processed call_id: ${call.call_id}`);
+
+            } catch (error) {
+                console.error(`[Queue Error] Failed to process ${call.call_id}:`, error.message);
+
+                await dbfarmkart('call_recordings')
+                    .where('id', call.id)
+                    .update({
+                        processing_status: 'failed',
+                        error_log: error.message
+                    });
+            } finally {
+                // Clean up
+                if (filePath && fs.existsSync(filePath)) {
+                    try { fs.unlinkSync(filePath); } catch (e) { }
+                }
+            }
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: `Processed ${pendingCalls.length} calls`
+        });
+
+    } catch (error) {
+        console.error('[Queue Error] Critical failure:', error.message);
+        return res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 module.exports = {
     processRecording,
     listRecordings,
@@ -448,5 +647,7 @@ module.exports = {
     handleWebhook,
     processPending,
     getRecordingsByMobile,
-    syncHistory
+    syncHistory,
+    syncHistoryFarmkart,
+    processPendingFarmkart
 };

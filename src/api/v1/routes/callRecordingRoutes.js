@@ -52,6 +52,20 @@ router.get('/mobile/:mobile_number', callRecordingController.getRecordingsByMobi
 router.get('/sync-history', callRecordingController.syncHistory);
 
 /**
+ * @route GET /api/v1/call-recordings/sync-history-farmkart
+ * @desc Sync historical call recordings from Smartflo to DB
+ * @access Public
+ */
+router.get('/sync-history-farmkart', callRecordingController.syncHistoryFarmkart);
+
+/**
+ * @route GET /api/v1/call-recordings/process-pending-farmkart
+ * @desc Process pending call recordings for farmkart
+ * @access Public (Add auth middleware if needed later)
+ */
+router.get('/process-pending-farmkart', callRecordingController.processPendingFarmkart);
+
+/**
  * @route GET /api/v1/call-recordings/test
  * @desc Test routing to call-recordings
  * @access Public
