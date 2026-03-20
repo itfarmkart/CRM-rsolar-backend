@@ -95,6 +95,82 @@ const syncMissionControlData = async (req, res) => {
     }
 };
 
+const onUpdateConvertBookingWebhook = async (req, res) => {
+    console.log("onUpdateConvertBookingWebhook", req.body);
+    // try {
+    //     const { data } = req.body;
+    //     if (!data || !Array.isArray(data)) {
+    //         return res.status(400).json({ status: 'error', message: "Invalid data format. Expected { data: [...] }" });
+    //     }
+
+    //     const trx = await db.transaction();
+    //     try {
+    //         for (const row of data) {
+    //             const mobileNo = row['Mobile No'] || row['mobile_no'] || row['register_mobile_number'];
+    //             if (!mobileNo) continue; // Skip rows without mobile number (join key)
+
+    //             // 1. Resolve customerId from 'customerDetails' table
+    //             // We use 'like' with the last 10 digits to be flexible with country code variations
+    //             const cleanMobile = mobileNo.toString().replace(/\D/g, '');
+    //             const last10 = cleanMobile.slice(-10);
+
+    //             if (last10.length < 10) {
+    //                 console.warn(`[Sync] Skipping invalid mobile number: ${mobileNo}`);
+    //                 continue;
+    //             }
+
+    //             const customer = await trx('customerDetails')
+    //                 .select('customerId')
+    //                 .where('mobileNumber', 'like', `%${last10}%`)
+    //                 .first();
+
+    //             if (!customer) {
+    //                 console.log(`[Sync] Mobile ${mobileNo} NOT found in customerDetails. Skipping.`);
+    //                 continue;
+    //             }
+
+    //             const customerId = customer.customerId;
+
+    //             // 2. Distribute columns to all 12 tables
+    //             for (const tableName of Object.keys(TABLE_SCHEMAS)) {
+    //                 const allowedCols = TABLE_SCHEMAS[tableName];
+    //                 const insertData = { customerId, mobile_no: mobileNo };
+    //                 let hasData = false;
+
+    //                 // Map row fields to table columns
+    //                 for (const sheetKey of Object.keys(row)) {
+    //                     const sqlCol = toSqlName(sheetKey);
+    //                     if (allowedCols.includes(sqlCol)) {
+    //                         insertData[sqlCol] = row[sheetKey];
+    //                         hasData = true;
+    //                     }
+    //                 }
+
+    //                 if (hasData) {
+    //                     // UPSERT logic using Knex
+    //                     // Note: mobile_no or customerId should have a UNIQUE index for onConflict to work correctly.
+    //                     await trx(tableName)
+    //                         .insert(insertData)
+    //                         .onConflict('mobile_no')
+    //                         .merge();
+    //                 }
+    //             }
+    //         }
+
+    //         await trx.commit();
+    //         res.status(200).json({ status: 'success', message: `Successfully synced ${data.length} rows.` });
+    //     } catch (error) {
+    //         await trx.rollback();
+    //         console.error("Sync Error:", error);
+    //         res.status(500).json({ status: 'error', message: "Sync Failed: " + error.message });
+    //     }
+    // } catch (error) {
+    //     console.error("Sync Error:", error);
+    //     res.status(500).json({ status: 'error', message: "Sync Failed: " + error.message });
+    // }
+}
+
 module.exports = {
-    syncMissionControlData
+    syncMissionControlData,
+    onUpdateConvertBookingWebhook
 };
