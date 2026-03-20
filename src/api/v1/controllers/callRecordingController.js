@@ -329,7 +329,7 @@ const handleWebhookFarmkart = async (req, res) => {
             let customerExist = 0;
             if (customerMobile) {
                 const customer = await dbfarmkart('customers')
-                    .where('mobileNumber', 'like', `%${customerMobile}%`)
+                    .where('mobileno', 'like', `%${customerMobile}%`)
                     .first();
                 customerExist = customer ? 1 : 0;
             }
