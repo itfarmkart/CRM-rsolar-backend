@@ -214,7 +214,7 @@ exports.getCustomerById = async (req, res) => {
         }
 
         if (!customer.customer_name) {
-            customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/StampPaperAgreements/${customer.customerName}-${customer.mobileNumber}.pdf`;
+            customer.agreement = `https://farmkartmedia.s3.ap-south-1.amazonaws.com/leegality/StampPaperAgreements/${customer.mobileNumber}.pdf`;
         }
 
         const warrantyKey = getS3KeyFromUrl(customer.warrentyCardUrl);

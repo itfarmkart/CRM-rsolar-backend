@@ -27,4 +27,7 @@ router.use('/employees', require('./employeeRoutes'));
 // Sync
 router.use('/sync', require('./syncRoutes'));
 
+// Zoho Sync
+router.use('/zoho', require('./zohoSyncRoutes'));
+
 module.exports = router;

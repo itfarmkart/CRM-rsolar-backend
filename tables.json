@@ -1,0 +1,101 @@
+[
+  {
+    "Tables_in_rsolar": "Banking"
+  },
+  {
+    "Tables_in_rsolar": "CHCData"
+  },
+  {
+    "Tables_in_rsolar": "ConvertBooking"
+  },
+  {
+    "Tables_in_rsolar": "Delivery"
+  },
+  {
+    "Tables_in_rsolar": "LoadChange"
+  },
+  {
+    "Tables_in_rsolar": "NameTransfer"
+  },
+  {
+    "Tables_in_rsolar": "PreInspection"
+  },
+  {
+    "Tables_in_rsolar": "Site_visit"
+  },
+  {
+    "Tables_in_rsolar": "WCR"
+  },
+  {
+    "Tables_in_rsolar": "allowedEmails"
+  },
+  {
+    "Tables_in_rsolar": "backend_fid"
+  },
+  {
+    "Tables_in_rsolar": "backend_main"
+  },
+  {
+    "Tables_in_rsolar": "call_recordings"
+  },
+  {
+    "Tables_in_rsolar": "complaintCategories"
+  },
+  {
+    "Tables_in_rsolar": "complaintEmailsAuth"
+  },
+  {
+    "Tables_in_rsolar": "complaintUpdates"
+  },
+  {
+    "Tables_in_rsolar": "complaints"
+  },
+  {
+    "Tables_in_rsolar": "customerAgreementDetails"
+  },
+  {
+    "Tables_in_rsolar": "customerDetails"
+  },
+  {
+    "Tables_in_rsolar": "daily_units"
+  },
+  {
+    "Tables_in_rsolar": "department"
+  },
+  {
+    "Tables_in_rsolar": "departments"
+  },
+  {
+    "Tables_in_rsolar": "employees"
+  },
+  {
+    "Tables_in_rsolar": "handover"
+  },
+  {
+    "Tables_in_rsolar": "inverterDetails"
+  },
+  {
+    "Tables_in_rsolar": "knex_migrations"
+  },
+  {
+    "Tables_in_rsolar": "knex_migrations_lock"
+  },
+  {
+    "Tables_in_rsolar": "leegality"
+  },
+  {
+    "Tables_in_rsolar": "leegalityWebhook"
+  },
+  {
+    "Tables_in_rsolar": "panelDetails"
+  },
+  {
+    "Tables_in_rsolar": "parentComplaintCategories"
+  },
+  {
+    "Tables_in_rsolar": "roles"
+  },
+  {
+    "Tables_in_rsolar": "warrenty_cards"
+  }
+]

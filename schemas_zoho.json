@@ -1,0 +1,260 @@
+{
+  "panelDetails": {
+    "createdAt": {
+      "defaultValue": "CURRENT_TIMESTAMP",
+      "type": "timestamp",
+      "maxLength": null,
+      "nullable": true
+    },
+    "customer_id": {
+      "defaultValue": null,
+      "type": "int",
+      "maxLength": null,
+      "nullable": true
+    },
+    "itemName": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "manufacturerName": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "panelId": {
+      "defaultValue": null,
+      "type": "int",
+      "maxLength": null,
+      "nullable": false
+    },
+    "partNumber": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber1": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber2": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber3": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber4": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber5": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber6": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 500,
+      "nullable": true
+    },
+    "sku": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    }
+  },
+  "inverterDetails": {
+    "createdAt": {
+      "defaultValue": "CURRENT_TIMESTAMP",
+      "type": "timestamp",
+      "maxLength": null,
+      "nullable": true
+    },
+    "customer_id": {
+      "defaultValue": null,
+      "type": "int",
+      "maxLength": null,
+      "nullable": true
+    },
+    "inverterId": {
+      "defaultValue": null,
+      "type": "int",
+      "maxLength": null,
+      "nullable": false
+    },
+    "itemName": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "manufacturerName": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "partNumber": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "serialNumber": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "sku": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    }
+  },
+  "customerDetails": {
+    "addedDate": {
+      "defaultValue": "CURRENT_TIMESTAMP",
+      "type": "timestamp",
+      "maxLength": null,
+      "nullable": true
+    },
+    "address": {
+      "defaultValue": null,
+      "type": "text",
+      "maxLength": 65535,
+      "nullable": true
+    },
+    "customerId": {
+      "defaultValue": null,
+      "type": "int",
+      "maxLength": null,
+      "nullable": false
+    },
+    "customerName": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "district": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "emailId": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 100,
+      "nullable": true
+    },
+    "inverterExpiryDate": {
+      "defaultValue": null,
+      "type": "date",
+      "maxLength": null,
+      "nullable": true
+    },
+    "invoiceDate": {
+      "defaultValue": null,
+      "type": "date",
+      "maxLength": null,
+      "nullable": true
+    },
+    "isZohoRegister": {
+      "defaultValue": "0",
+      "type": "tinyint",
+      "maxLength": null,
+      "nullable": true
+    },
+    "ivrsNumber": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 20,
+      "nullable": true
+    },
+    "ivrsStatus": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 20,
+      "nullable": true
+    },
+    "latitude": {
+      "defaultValue": null,
+      "type": "decimal",
+      "maxLength": null,
+      "nullable": true
+    },
+    "longitude": {
+      "defaultValue": null,
+      "type": "decimal",
+      "maxLength": null,
+      "nullable": true
+    },
+    "mobileNumber": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 15,
+      "nullable": true
+    },
+    "panelExpiryDate": {
+      "defaultValue": null,
+      "type": "date",
+      "maxLength": null,
+      "nullable": true
+    },
+    "pincode": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 10,
+      "nullable": true
+    },
+    "solar_device_id": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "solarPlantType": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "state": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "tehsil": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    },
+    "village": {
+      "defaultValue": null,
+      "type": "varchar",
+      "maxLength": 50,
+      "nullable": true
+    }
+  }
+}
