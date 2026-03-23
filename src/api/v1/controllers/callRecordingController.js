@@ -328,7 +328,7 @@ const handleWebhookFarmkart = async (req, res) => {
             // Check customer existence
             let customerExist = 0;
             if (customerMobile) {
-                const customer = await dbfarmkart('customers')
+                const customer = await dbfarmkart('customer')
                     .where('mobileno', 'like', `%${customerMobile}%`)
                     .first();
                 customerExist = customer ? 1 : 0;
