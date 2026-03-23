@@ -98,7 +98,7 @@ const syncMissionControlData = async (req, res) => {
 const onUpdateConvertBookingWebhook = async (req, res) => {
     console.log("onUpdateConvertBookingWebhook received data:", JSON.stringify(req.body, null, 2));
     try {
-        const { Data } = req.body;
+        const { Data, TableName } = req.body;
         if (!Data) {
             return res.status(400).json({ status: 'error', message: "Invalid data format. Expected { Data: { ... } }" });
         }
@@ -161,8 +161,12 @@ const onUpdateConvertBookingWebhook = async (req, res) => {
                 console.log(`[Webhook] Updated customerDetails for ${customerId}`);
             }
 
-            // 3. Distribute columns to all mapped tables
+            // 3. Distribute columns to tables (Filtered by TableName)
             for (const tableName of Object.keys(TABLE_SCHEMAS)) {
+                // STRICT APPROACH: Only update the table specified by the webhook, plus 'backend_main'
+                if (TableName && tableName !== TableName && tableName !== 'backend_main') {
+                    continue;
+                }
                 const allowedCols = TABLE_SCHEMAS[tableName];
                 const insertData = { customerId, mobile_no: mobileNo };
                 let hasData = false;
